@@ -4,8 +4,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import matplotlib.pyplot as plt
 from datetime import datetime
-
-st.set_page_config(page_title="Inversor Dashboard", layout="wide", initial_sidebar_state="expanded")
+import altair as alt
 
 @st.cache_data
 def load_data(path: str = "../data/inversor_data_with_heating.csv"):
@@ -13,14 +12,6 @@ def load_data(path: str = "../data/inversor_data_with_heating.csv"):
     df['Datetime'] = pd.to_datetime(df['Datetime'])
     return df
 
-data = load_data()
-
-st.title("Dashboard Energético — Sistema de Inversor")
-
-
-# ============================================================================
-# Función para crear diagrama Sankey
-# ============================================================================
 def create_sankey_diagram(df):
     """Crea un diagrama Sankey mostrando las fuentes de consumo total"""
     
@@ -74,56 +65,114 @@ def create_sankey_diagram(df):
     
     return fig
 
+page = st.session_state.setdefault("page", "Inicio")
 
-# ============================================================================
-# Función para crear stack area chart 
-# ============================================================================
-def create_stacked_area_chart(df):
-    """Crea un gráfico de área apilada para consumo energético a lo largo del tiempo"""
-    fig, ax = plt.subplots(figsize=(8, 3.5))
-    fig.patch.set_facecolor('#f8f9fa')
-    ax.set_facecolor('#f8f9fa')
-    
-    x = df['Datetime']
-    y1 = df['DirectConsumption(W)'] / 1000  # Convertir a kW
-    y2 = df['BatteryDischarging(W)'] / 1000
-    y3 = df['ExternalEnergySupply(W)'] / 1000
-    
-    ax.stackplot(x, y1, y2, y3, 
-        labels=['Direct Consumption (PV)', 'Battery Discharging', 'External Energy Supply'],
-        colors=['#FFD700', '#1E90FF', '#FF4500'],
-        alpha=0.7
-    )
-    
-    ax.set_title('Energy Sources Over Time (Stacked Area Chart)', fontsize=14, fontweight='bold', color='black', pad=15)
-    ax.set_xlabel('Time', fontsize=11, color='black')
-    ax.set_ylabel('Power (kW)', fontsize=11, color='black')
-    ax.legend(loc='upper left', fontsize=9, framealpha=0.9)
-    ax.grid(True, alpha=0.3, linestyle='--')
-    ax.tick_params(colors='black', labelsize=9)
-    
-    # Rotary labels para mejor legibilidad
-    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
-    
-    fig.tight_layout()
-    
-    return fig
+data = load_data()
+data['Datetime'] = pd.to_datetime(data['Datetime'])
+
+temp_min = data['temperature'].min()
+temp_max = data['temperature'].max()
+
+prec_min = data['precipitation'].loc[data['precipitation'] != 0].min()
+prec_max = data['precipitation'].max()
+
+wind_min = data['WindSpeed'].loc[data['WindSpeed'] != 0].min()
+wind_max = data['WindSpeed'].max()
+
+YEARS = data['Datetime'].dt.year.unique()
 
 
-
+st.markdown("""
+    <style>
+    .stButton>button {
+        font-size: 26px;             
+        font-family: 'Poppins Semibold';  
+        color: #00000;
+        padding: 10px 24px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 
 # ============================================================================
-# Mostrar Sankey Diagram
+# Datos históricos y en tiempo real
 # ============================================================================
-st.subheader("Energy Sources Flow")
-sankey_fig = create_sankey_diagram(data)
-st.plotly_chart(sankey_fig, use_container_width=True)
+if page == "Inicio":
+    st.title("Dashboard Energético — Sistema de Inversor")
+    st.write("")
+
+    st.session_state.setdefault("page", "Weather")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        if st.button("METEOROLOGÍA"):
+            st.session_state["page"] = "Weather"
+
+    with col2:
+        if st.button("DATOS HISTÓRICOS"):
+            st.session_state["page"] = "Histórico"
+
+    with col3:
+        if st.button("EN TIEMPO REAL"):
+            st.session_state["page"] = "En tiempo real"
 
 
-# ============================================================================
-# Mostrar Stack Area Chart
-# ============================================================================
-st.subheader("Energy Consumption Over Time")
-stacked_area_fig = create_stacked_area_chart(data)
-st.pyplot(stacked_area_fig, use_container_width=False)
+if page == "Histórico":
+    st.subheader("Energy Sources Flow")
+    sankey_fig = create_sankey_diagram(data)
+    st.plotly_chart(sankey_fig, use_container_width=True)
+
+if page == "Weather":
+    with st.container():
+        cols = st.columns(2, gap='medium')
+
+        with cols[0]:
+            st.metric("Temperatura máxima:", f"{temp_max:.2f} °C")
+        
+        with cols[1]:
+            st.metric("Temperatura mínima:", f"{temp_min:.2f} °C")
+
+        cols = st.columns(2, gap='medium')
+
+        with cols[0]:
+            st.metric("Precipitación máxima:", f"{prec_max:.2f} mm/h")
+        
+        with cols[1]:
+            st.metric("Precipitación mínima:", f"{prec_min:.2f} mm/h")
+
+        cols = st.columns(2, gap='medium')
+
+        with cols[0]:
+            st.metric("Velocidad del viento máxima:", f"{wind_max:.2f} km/h")
+
+        with cols[1]:
+            st.metric("Velocidad del viento mínima:", f"{wind_min:.2f} km/h")
+
+        selected_years = st.multiselect(
+            "Selecciona los años para filtrar los datos:",
+            options=YEARS
+        )
+
+        if not selected_years:
+            st.warning("You must select at least 1 year.", icon="⚠️")
+        
+        data_year = data[data['Datetime'].dt.year.isin(selected_years)]
+
+        cols = st.columns([3, 1])
+
+        with cols[0].container(border=True, height=200):
+            st.altair_chart(
+                alt.Chart(data_year)
+                .mark_bar(width=1)
+                .encode(
+                    alt.X("Datetime", timeUnit="monthdate").title("date"),
+                    alt.Y("temperature").title("temperature range (C)"),
+                    alt.Y2("temperature"),
+                    alt.Color("Datetime:N", timeUnit="year").title("year"),
+                    alt.XOffset("Datetime:N", timeUnit="year"),
+                )
+                .configure_legend(orient="bottom")
+            )
+
+
