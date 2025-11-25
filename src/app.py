@@ -149,30 +149,54 @@ if page == "Weather":
         with cols[1]:
             st.metric("Velocidad del viento mínima:", f"{wind_min:.2f} km/h")
 
-        selected_years = st.multiselect(
-            "Selecciona los años para filtrar los datos:",
-            options=YEARS
-        )
-
-        if not selected_years:
-            st.warning("You must select at least 1 year.", icon="⚠️")
+        st.write("")
+        st.subheader("Temperatura Media Semanal (2024 - 2025)")
         
-        data_year = data[data['Datetime'].dt.year.isin(selected_years)]
+        # Preparar datos para el gráfico
+        data_copy = data.copy()
+        
+        # Agregar columnas para año y semana
+        data_copy['Year'] = data_copy['Datetime'].dt.year
+        data_copy['Week'] = data_copy['Datetime'].dt.isocalendar().week
+        data_copy['YearWeek'] = data_copy['Datetime'].dt.to_period('W').apply(lambda r: r.start_time)
+        
+        # Calcular temperatura media por semana
+        weekly_temp = data_copy.groupby('YearWeek')['temperature'].mean().reset_index()
+        weekly_temp.columns = ['Fecha', 'Temperatura Media (°C)']
+        
+        cols = st.columns([1, 1])
 
-        cols = st.columns([3, 1])
+        with cols[0].container(border=True, height=400):
+            chart = alt.Chart(weekly_temp).mark_line(point=False, color='red').encode(
+                x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y')),
+                y=alt.Y('Temperatura Media (°C):Q', title='Temperatura Media (°C)'),
+                tooltip=[
+                    alt.Tooltip('Fecha:T', title='Semana', format='%d %b %Y'),
+                    alt.Tooltip('Temperatura Media (°C):Q', format='.2f', title='Temperatura (°C)')
+                ]
+            ).properties(
+                height=400
+            ).interactive()
+        
+            st.altair_chart(chart, use_container_width=True)
 
-        with cols[0].container(border=True, height=200):
-            st.altair_chart(
-                alt.Chart(data_year)
-                .mark_bar(width=1)
-                .encode(
-                    alt.X("Datetime", timeUnit="monthdate").title("date"),
-                    alt.Y("temperature").title("temperature range (C)"),
-                    alt.Y2("temperature"),
-                    alt.Color("Datetime:N", timeUnit="year").title("year"),
-                    alt.XOffset("Datetime:N", timeUnit="year"),
-                )
-                .configure_legend(orient="bottom")
-            )
+        with cols[1].container(border=True, height=400):
+            # Calcular precipitación media por semana
+            weekly_prec = data_copy.groupby('YearWeek')['precipitation'].mean().reset_index()
+            weekly_prec.columns = ['Fecha', 'Precipitación Media (mm/h)']
+            
+            chart_prec = alt.Chart(weekly_prec).mark_line(point=False, color='blue').encode(
+                x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y')),
+                y=alt.Y('Precipitación Media (mm/h):Q', title='Precipitación Media (mm/h)'),
+                tooltip=[
+                    alt.Tooltip('Fecha:T', title='Semana', format='%d %b %Y'),
+                    alt.Tooltip('Precipitación Media (mm/h):Q', format='.2f', title='Precipitación (mm/h)')
+                ]
+            ).properties(
+                height=400,
+                width=400
+            ).interactive()
+            
+            st.altair_chart(chart_prec, use_container_width=True)
 
 
