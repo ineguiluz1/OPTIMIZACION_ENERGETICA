@@ -151,25 +151,33 @@ st.markdown("""
         color: #2d3748;
     }
     
-    /* Botones mejorados */
+    /* Botones de navegación minimalistas */
     .stButton>button {
-        font-size: 18px;
+        font-size: 15px;
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
-        color: white;
-        background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-        border: none;
+        color: #2d3748;
+        background: white;
+        border: 2px solid #e2e8f0;
         border-radius: 12px;
-        padding: 16px 32px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
+        padding: 16px 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        transition: all 0.25s ease;
         width: 100%;
+        position: relative;
     }
     
     .stButton>button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-        background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: #cbd5e0;
+        background: #f7fafc;
+        color: #1a202c;
+    }
+    
+    .stButton>button:active {
+        transform: translateY(0px);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
     }
     
     /* Métricas mejoradas */
