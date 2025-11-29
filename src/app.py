@@ -408,7 +408,7 @@ if page == "Histórico":
     with col_stack1:
         stack_view_mode = st.radio(
             "Modo de visualización de fuentes:",
-            ["Semanal", "Diario"],
+            ["Semanal", "Diario", "Periodo Específico"],
             horizontal=True,
             key="stack_view_mode"
         )
@@ -433,7 +433,7 @@ if page == "Histórico":
         date_format_stack = '%b %Y'
         tooltip_date_format_stack = '%d %b %Y'
         stack_title_suffix = " - Media Semanal"
-    else:
+    elif stack_view_mode == "Diario":
         # Vista diaria con granularidad de 15 minutos
         with col_stack2:
             min_date = data['Datetime'].min().date()
@@ -463,6 +463,55 @@ if page == "Histórico":
         date_format_stack = '%H:%M'
         tooltip_date_format_stack = '%H:%M'
         stack_title_suffix = f" - {selected_stack_date.strftime('%d/%m/%Y')}"
+    else:  # Periodo Específico
+        with col_stack2:
+            min_date = data['Datetime'].min().date()
+            max_date = data['Datetime'].max().date()
+            
+            date_range_stack = st.date_input(
+                "Seleccionar rango de fechas:",
+                value=(min_date, min_date + pd.Timedelta(days=7)),
+                min_value=min_date,
+                max_value=max_date,
+                key="stack_range_selector"
+            )
+        
+        # Manejar selección de rango
+        if isinstance(date_range_stack, tuple) and len(date_range_stack) == 2:
+            start_date, end_date = date_range_stack
+            period_stack_data = data_stack[(data_stack['Datetime'].dt.date >= start_date) & 
+                                          (data_stack['Datetime'].dt.date <= end_date)].copy()
+            
+            # Usar datos con granularidad de 15 minutos
+            period_stack_data = period_stack_data[['Datetime', 'DirectConsumption(W)', 'ExternalEnergySupply(W)', 'BatteryDischarging(W)']].copy()
+            period_stack_data.columns = ['Fecha', 'Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)']
+            
+            stack_data = pd.melt(
+                period_stack_data,
+                id_vars=['Fecha'],
+                value_vars=['Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)'],
+                var_name='Fuente',
+                value_name='Potencia (W)'
+            )
+            date_format_stack = '%d %b %H:%M'
+            tooltip_date_format_stack = '%d %b %Y %H:%M'
+            stack_title_suffix = f" - {start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}"
+        else:
+            selected_date = date_range_stack if not isinstance(date_range_stack, tuple) else date_range_stack[0]
+            daily_stack_data = data_stack[data_stack['Datetime'].dt.date == selected_date].copy()
+            daily_stack_data = daily_stack_data[['Datetime', 'DirectConsumption(W)', 'ExternalEnergySupply(W)', 'BatteryDischarging(W)']].copy()
+            daily_stack_data.columns = ['Fecha', 'Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)']
+            
+            stack_data = pd.melt(
+                daily_stack_data,
+                id_vars=['Fecha'],
+                value_vars=['Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)'],
+                var_name='Fuente',
+                value_name='Potencia (W)'
+            )
+            date_format_stack = '%H:%M'
+            tooltip_date_format_stack = '%H:%M'
+            stack_title_suffix = f" - {selected_date.strftime('%d/%m/%Y')}"
     
     # Crear stacked area chart
     stacked_chart = alt.Chart(stack_data).mark_area(
@@ -516,7 +565,7 @@ if page == "Histórico":
     with col_view1:
         consumption_view_mode = st.radio(
             "Modo de visualización de consumo:",
-            ["Semanal", "Diario"],
+            ["Semanal", "Diario", "Periodo Específico"],
             horizontal=True,
             key="consumption_view_mode"
         )
@@ -533,7 +582,7 @@ if page == "Histórico":
         date_format = '%b %Y'
         tooltip_date_format = '%d %b %Y'
         chart_title_suffix = " - Media Semanal"
-    else:
+    elif consumption_view_mode == "Diario":
         # Vista diaria con granularidad de 15 minutos
         with col_view2:
             min_date = data['Datetime'].min().date()
@@ -555,6 +604,43 @@ if page == "Histórico":
         date_format = '%H:%M'
         tooltip_date_format = '%H:%M'
         chart_title_suffix = f" - {selected_consumption_date.strftime('%d/%m/%Y')}"
+    else:  # Periodo Específico
+        with col_view2:
+            min_date = data['Datetime'].min().date()
+            max_date = data['Datetime'].max().date()
+            
+            date_range = st.date_input(
+                "Seleccionar rango de fechas:",
+                value=(min_date, min_date + pd.Timedelta(days=7)),
+                min_value=min_date,
+                max_value=max_date,
+                key="consumption_range_selector"
+            )
+        
+        # Manejar selección de rango
+        if isinstance(date_range, tuple) and len(date_range) == 2:
+            start_date, end_date = date_range
+            # Filtrar datos para el rango seleccionado
+            period_data = data_hist[(data_hist['Datetime'].dt.date >= start_date) & 
+                                   (data_hist['Datetime'].dt.date <= end_date)].copy()
+            
+            # Usar datos con granularidad de 15 minutos
+            period_data = period_data[['Datetime', 'TotalConsumption(W)', 'HeatingSystem(W)']].copy()
+            period_data.columns = ['Fecha', 'Consumo Total (W)', 'Calefacción (W)']
+            consumption_data = period_data
+            date_format = '%d %b %H:%M'
+            tooltip_date_format = '%d %b %Y %H:%M'
+            chart_title_suffix = f" - {start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}"
+        else:
+            # Si solo se seleccionó una fecha, usar vista diaria
+            selected_date = date_range if not isinstance(date_range, tuple) else date_range[0]
+            daily_data = data_hist[data_hist['Datetime'].dt.date == selected_date].copy()
+            daily_data = daily_data[['Datetime', 'TotalConsumption(W)', 'HeatingSystem(W)']].copy()
+            daily_data.columns = ['Fecha', 'Consumo Total (W)', 'Calefacción (W)']
+            consumption_data = daily_data
+            date_format = '%H:%M'
+            tooltip_date_format = '%H:%M'
+            chart_title_suffix = f" - {selected_date.strftime('%d/%m/%Y')}"
 
     cols = st.columns(2, gap='large')
 
@@ -707,20 +793,98 @@ if page == "Weather":
     data_copy['YearWeek'] = data_copy['Datetime'].dt.to_period('W').apply(lambda r: r.start_time)
 
     # Gráficos de Temperatura y Precipitación
-    st.markdown("### 📈 Temperatura y Precipitación Media Semanal (2024 - 2025)")
+    st.markdown("### 📈 Temperatura y Precipitación (2024 - 2025)")
     st.write("")
     
-    # Calcular datos semanales
-    weekly_temp = data_copy.groupby('YearWeek')['temperature'].mean().reset_index()
-    weekly_temp.columns = ['Fecha', 'Temperatura Media (°C)']
+    # Controles de visualización para gráficos de meteorología
+    col_weather1, col_weather2 = st.columns([1, 1])
     
-    weekly_prec = data_copy.groupby('YearWeek')['precipitation'].mean().reset_index()
-    weekly_prec.columns = ['Fecha', 'Precipitación Media (mm/h)']
+    with col_weather1:
+        weather_view_mode = st.radio(
+            "Modo de visualización de meteorología:",
+            ["Semanal", "Diario", "Periodo Específico"],
+            horizontal=True,
+            key="weather_view_mode"
+        )
+    
+    if weather_view_mode == "Semanal":
+        # Calcular datos semanales
+        weekly_temp = data_copy.groupby('YearWeek')['temperature'].mean().reset_index()
+        weekly_temp.columns = ['Fecha', 'Temperatura Media (°C)']
+        
+        weekly_prec = data_copy.groupby('YearWeek')['precipitation'].mean().reset_index()
+        weekly_prec.columns = ['Fecha', 'Precipitación Media (mm/h)']
+        
+        temp_data = weekly_temp
+        prec_data = weekly_prec
+        date_format_weather = '%b %Y'
+        tooltip_date_format_weather = '%d %b %Y'
+    elif weather_view_mode == "Diario":
+        with col_weather2:
+            min_date = data['Datetime'].min().date()
+            max_date = data['Datetime'].max().date()
+            
+            selected_weather_date = st.date_input(
+                "Seleccionar día:",
+                value=min_date,
+                min_value=min_date,
+                max_value=max_date,
+                key="weather_date_selector"
+            )
+            
+        daily_weather = data_copy[data_copy['Datetime'].dt.date == selected_weather_date].copy()
+        
+        temp_data = daily_weather[['Datetime', 'temperature']].copy()
+        temp_data.columns = ['Fecha', 'Temperatura Media (°C)']
+        
+        prec_data = daily_weather[['Datetime', 'precipitation']].copy()
+        prec_data.columns = ['Fecha', 'Precipitación Media (mm/h)']
+        
+        date_format_weather = '%H:%M'
+        tooltip_date_format_weather = '%H:%M'
+    else:  # Periodo Específico
+        with col_weather2:
+            min_date = data['Datetime'].min().date()
+            max_date = data['Datetime'].max().date()
+            
+            date_range_weather = st.date_input(
+                "Seleccionar rango de fechas:",
+                value=(min_date, min_date + pd.Timedelta(days=7)),
+                min_value=min_date,
+                max_value=max_date,
+                key="weather_range_selector"
+            )
+            
+        if isinstance(date_range_weather, tuple) and len(date_range_weather) == 2:
+            start_date, end_date = date_range_weather
+            period_weather = data_copy[(data_copy['Datetime'].dt.date >= start_date) & 
+                                      (data_copy['Datetime'].dt.date <= end_date)].copy()
+            
+            temp_data = period_weather[['Datetime', 'temperature']].copy()
+            temp_data.columns = ['Fecha', 'Temperatura Media (°C)']
+            
+            prec_data = period_weather[['Datetime', 'precipitation']].copy()
+            prec_data.columns = ['Fecha', 'Precipitación Media (mm/h)']
+            
+            date_format_weather = '%d %b %H:%M'
+            tooltip_date_format_weather = '%d %b %Y %H:%M'
+        else:
+            selected_date = date_range_weather if not isinstance(date_range_weather, tuple) else date_range_weather[0]
+            daily_weather = data_copy[data_copy['Datetime'].dt.date == selected_date].copy()
+            
+            temp_data = daily_weather[['Datetime', 'temperature']].copy()
+            temp_data.columns = ['Fecha', 'Temperatura Media (°C)']
+            
+            prec_data = daily_weather[['Datetime', 'precipitation']].copy()
+            prec_data.columns = ['Fecha', 'Precipitación Media (mm/h)']
+            
+            date_format_weather = '%H:%M'
+            tooltip_date_format_weather = '%H:%M'
     
     cols = st.columns([1, 1], gap='large')
 
     with cols[0]:
-        chart = alt.Chart(weekly_temp).mark_area(
+        chart = alt.Chart(temp_data).mark_area(
             line={'color': '#EF4444'},
             color=alt.Gradient(
                 gradient='linear',
@@ -731,10 +895,13 @@ if page == "Weather":
                 x1=0, x2=0, y1=0, y2=1
             )
         ).encode(
-            x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y', labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
-            y=alt.Y('Temperatura Media (°C):Q', title='Temperatura Media (°C)', axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+            x=alt.X('Fecha:T', title='Fecha' if weather_view_mode == 'Semanal' else 'Hora', 
+                    axis=alt.Axis(format=date_format_weather, labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+            y=alt.Y('Temperatura Media (°C):Q', title='Temperatura Media (°C)', 
+                    axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
             tooltip=[
-                alt.Tooltip('Fecha:T', title='Semana', format='%d %b %Y'),
+                alt.Tooltip('Fecha:T', title='Semana' if weather_view_mode == 'Semanal' else 'Hora', 
+                           format=tooltip_date_format_weather),
                 alt.Tooltip('Temperatura Media (°C):Q', format='.2f', title='Temperatura (°C)')
             ]
         ).properties(
@@ -753,7 +920,7 @@ if page == "Weather":
         st.altair_chart(chart, use_container_width=True)
 
     with cols[1]:
-        chart_prec = alt.Chart(weekly_prec).mark_area(
+        chart_prec = alt.Chart(prec_data).mark_area(
             line={'color': '#3B82F6'},
             color=alt.Gradient(
                 gradient='linear',
@@ -764,10 +931,13 @@ if page == "Weather":
                 x1=0, x2=0, y1=0, y2=1
             )
         ).encode(
-            x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y', labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
-            y=alt.Y('Precipitación Media (mm/h):Q', title='Precipitación Media (mm/h)', axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+            x=alt.X('Fecha:T', title='Fecha' if weather_view_mode == 'Semanal' else 'Hora', 
+                    axis=alt.Axis(format=date_format_weather, labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+            y=alt.Y('Precipitación Media (mm/h):Q', title='Precipitación Media (mm/h)', 
+                    axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
             tooltip=[
-                alt.Tooltip('Fecha:T', title='Semana', format='%d %b %Y'),
+                alt.Tooltip('Fecha:T', title='Semana' if weather_view_mode == 'Semanal' else 'Hora', 
+                           format=tooltip_date_format_weather),
                 alt.Tooltip('Precipitación Media (mm/h):Q', format='.2f', title='Precipitación (mm/h)')
             ]
         ).properties(
@@ -788,13 +958,31 @@ if page == "Weather":
     st.divider()
 
     # Gráfico de Radiación
-    st.markdown("### ☀️ Radiación Media Semanal (2024 - 2025)")
+    st.markdown("### ☀️ Radiación (2024 - 2025)")
     st.write("")
     
-    weekly_rad = data_copy.groupby('YearWeek')['radiation'].mean().reset_index()
-    weekly_rad.columns = ['Fecha', 'Radiación Media (W/m²)']
+    if weather_view_mode == "Semanal":
+        weekly_rad = data_copy.groupby('YearWeek')['radiation'].mean().reset_index()
+        weekly_rad.columns = ['Fecha', 'Radiación Media (W/m²)']
+        rad_data = weekly_rad
+    elif weather_view_mode == "Diario":
+        daily_rad = data_copy[data_copy['Datetime'].dt.date == selected_weather_date].copy()
+        rad_data = daily_rad[['Datetime', 'radiation']].copy()
+        rad_data.columns = ['Fecha', 'Radiación Media (W/m²)']
+    else:  # Periodo Específico
+        if isinstance(date_range_weather, tuple) and len(date_range_weather) == 2:
+            start_date, end_date = date_range_weather
+            period_rad = data_copy[(data_copy['Datetime'].dt.date >= start_date) & 
+                                  (data_copy['Datetime'].dt.date <= end_date)].copy()
+            rad_data = period_rad[['Datetime', 'radiation']].copy()
+            rad_data.columns = ['Fecha', 'Radiación Media (W/m²)']
+        else:
+            selected_date = date_range_weather if not isinstance(date_range_weather, tuple) else date_range_weather[0]
+            daily_rad = data_copy[data_copy['Datetime'].dt.date == selected_date].copy()
+            rad_data = daily_rad[['Datetime', 'radiation']].copy()
+            rad_data.columns = ['Fecha', 'Radiación Media (W/m²)']
     
-    chart_rad = alt.Chart(weekly_rad).mark_area(
+    chart_rad = alt.Chart(rad_data).mark_area(
         line={'color': '#F97316'},
         color=alt.Gradient(
             gradient='linear',
@@ -805,10 +993,13 @@ if page == "Weather":
             x1=0, x2=0, y1=0, y2=1
         )
     ).encode(
-        x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y', labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
-        y=alt.Y('Radiación Media (W/m²):Q', title='Radiación Media (W/m²)', axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+        x=alt.X('Fecha:T', title='Fecha' if weather_view_mode == 'Semanal' else 'Hora', 
+                axis=alt.Axis(format=date_format_weather, labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+        y=alt.Y('Radiación Media (W/m²):Q', title='Radiación Media (W/m²)', 
+                axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
         tooltip=[
-            alt.Tooltip('Fecha:T', title='Semana', format='%d %b %Y'),
+            alt.Tooltip('Fecha:T', title='Semana' if weather_view_mode == 'Semanal' else 'Hora', 
+                       format=tooltip_date_format_weather),
             alt.Tooltip('Radiación Media (W/m²):Q', format='.2f', title='Radiación (W/m²)')
         ]
     ).properties(
