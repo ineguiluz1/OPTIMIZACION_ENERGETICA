@@ -124,7 +124,7 @@ st.markdown("""
     
     /* Fondo general minimalista */
     .stApp {
-        background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+        background: #ffffff;
         font-family: 'Inter', sans-serif;
     }
     
@@ -224,9 +224,10 @@ st.markdown("""
 
     /* Estilos para widgets (Radio, DateInput) */
     .stRadio > label, .stDateInput > label {
-        color: #000000 !important;
+        color: #2d3748 !important;
         font-weight: 600 !important;
-        font-size: 16px !important;
+        font-size: 14px !important;
+        margin-bottom: 0.3rem !important;
     }
     
     div[data-baseweb="radio"] label {
@@ -235,6 +236,56 @@ st.markdown("""
     
     div[data-testid="stMarkdownContainer"] p {
         color: #000000;
+    }
+    
+    /* Selector de fecha más compacto y estético */
+    div[data-baseweb="input"] {
+        border-radius: 8px !important;
+        border: 1.5px solid #cbd5e0 !important;
+        transition: all 0.2s ease !important;
+        font-size: 14px !important;
+        padding: 2px 8px !important;
+    }
+    
+    div[data-baseweb="input"]:hover {
+        border-color: #805AD5 !important;
+        box-shadow: 0 2px 8px rgba(128, 90, 213, 0.15) !important;
+    }
+    
+    div[data-baseweb="input"]:focus-within {
+        border-color: #805AD5 !important;
+        box-shadow: 0 0 0 3px rgba(128, 90, 213, 0.1) !important;
+    }
+    
+    input[type="date"], input[type="text"] {
+        font-size: 14px !important;
+        color: #ffffff !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    
+    /* Contenedores de gráficos con fondo blanco */
+    div[data-testid="stPlotlyChart"] {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+    
+    div.stAltairChart {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+    
+    /* Asegurar bordes redondeados en los canvas de Altair */
+    div.stAltairChart > div {
+        border-radius: 12px;
+        overflow: hidden;
     }
     
     /* DataFrames */
@@ -256,12 +307,23 @@ st.markdown("""
 # Página de Inicio
 # ============================================================================
 if page == "Inicio":
+
+    
+    st.write("")
     st.title("⚡ Dashboard Energético — Sistema de Inversor")
     st.write("")
 
+    # Logo centrado
+    col_logo1, col_logo2, col_logo3 = st.columns([1, 2, 1])
+    with col_logo2:
+        st.image("../media/dashboard_logo.png")
+
     st.session_state.setdefault("page", "Weather")
 
+    st.divider()
+
     col1, col2, col3 = st.columns(3, gap="large")
+
 
     with col1:
         if st.button("🌤️ METEOROLOGÍA"):
@@ -289,7 +351,7 @@ if page == "Histórico":
     show_navigation_menu()
     
     # Controles de filtrado
-    col_filter1, col_filter2 = st.columns([1, 2])
+    col_filter1, col_filter2 = st.columns([1, 1])
     
     with col_filter1:
         view_mode = st.radio(
@@ -328,21 +390,168 @@ if page == "Histórico":
 
     st.divider()
 
+    # Nueva sección: Stacked Area Chart de Fuentes de Energía
+    st.subheader("📊 Desglose de Fuentes de Energía")
+    st.write("")
+
+    # Controles de visualización para stacked area chart
+    col_stack1, col_stack2 = st.columns([1, 1])
+    
+    with col_stack1:
+        stack_view_mode = st.radio(
+            "Modo de visualización de fuentes:",
+            ["Semanal", "Diario"],
+            horizontal=True,
+            key="stack_view_mode"
+        )
+    
+    # Preparar datos para stacked area chart
+    data_stack = data.copy()
+    
+    if stack_view_mode == "Semanal":
+        # Vista semanal - medias
+        data_stack['YearWeek'] = data_stack['Datetime'].dt.to_period('W').apply(lambda r: r.start_time)
+        weekly_sources = data_stack.groupby('YearWeek')[['DirectConsumption(W)', 'ExternalEnergySupply(W)', 'BatteryDischarging(W)']].mean().reset_index()
+        weekly_sources.columns = ['Fecha', 'Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)']
+        
+        # Transformar a formato largo para stacked area
+        stack_data = pd.melt(
+            weekly_sources,
+            id_vars=['Fecha'],
+            value_vars=['Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)'],
+            var_name='Fuente',
+            value_name='Potencia (W)'
+        )
+        date_format_stack = '%b %Y'
+        tooltip_date_format_stack = '%d %b %Y'
+        stack_title_suffix = " - Media Semanal"
+    else:
+        # Vista diaria con granularidad de 15 minutos
+        with col_stack2:
+            min_date = data['Datetime'].min().date()
+            max_date = data['Datetime'].max().date()
+            
+            selected_stack_date = st.date_input(
+                "Seleccionar día:",
+                value=min_date,
+                min_value=min_date,
+                max_value=max_date,
+                key="stack_date_selector"
+            )
+        
+        # Filtrar datos para el día seleccionado
+        daily_stack_data = data_stack[data_stack['Datetime'].dt.date == selected_stack_date].copy()
+        daily_stack_data = daily_stack_data[['Datetime', 'DirectConsumption(W)', 'ExternalEnergySupply(W)', 'BatteryDischarging(W)']].copy()
+        daily_stack_data.columns = ['Fecha', 'Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)']
+        
+        # Transformar a formato largo para stacked area
+        stack_data = pd.melt(
+            daily_stack_data,
+            id_vars=['Fecha'],
+            value_vars=['Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)'],
+            var_name='Fuente',
+            value_name='Potencia (W)'
+        )
+        date_format_stack = '%H:%M'
+        tooltip_date_format_stack = '%H:%M'
+        stack_title_suffix = f" - {selected_stack_date.strftime('%d/%m/%Y')}"
+    
+    # Crear stacked area chart
+    stacked_chart = alt.Chart(stack_data).mark_area(
+        opacity=0.8
+    ).encode(
+        x=alt.X('Fecha:T', 
+                title='Fecha' if stack_view_mode == 'Semanal' else 'Hora',
+                axis=alt.Axis(format=date_format_stack, labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+        y=alt.Y('Potencia (W):Q', 
+                title='Potencia (W)',
+                axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+        color=alt.Color('Fuente:N',
+                       scale=alt.Scale(
+                           domain=['Consumo Directo (W)', 'Descarga Batería (W)', 'Suministro Externo (W)'],
+                           range=['#FF6347', '#1E90FF', '#3CB371']  # Tomato, DodgerBlue, MediumSeaGreen
+                       ),
+                       legend=alt.Legend(title='Fuente de Energía', orient='top')),
+        tooltip=[
+            alt.Tooltip('Fecha:T', 
+                       title='Semana' if stack_view_mode == 'Semanal' else 'Hora',
+                       format=tooltip_date_format_stack),
+            alt.Tooltip('Fuente:N', title='Fuente'),
+            alt.Tooltip('Potencia (W):Q', format='.2f', title='Potencia (W)')
+        ]
+    ).properties(
+        height=400,
+        title=alt.TitleParams(text=f'Fuentes de Energía{stack_title_suffix}', fontSize=18, color='#2d3748', anchor='middle')
+    ).configure(
+        background='white'
+    ).configure_view(
+        strokeWidth=0,
+        fill='white'
+    ).configure_axis(
+        gridColor='#f7fafc',
+        domainColor='#e2e8f0'
+    ).configure_legend(
+        labelColor='#2d3748',
+        titleColor='#2d3748'
+    ).interactive()
+    
+    st.altair_chart(stacked_chart, use_container_width=True)
+
+    st.divider()
+
     st.subheader("📈 Evolución del Consumo (2024 - 2025)")
     st.write("")
 
+    # Controles de visualización para gráficos de consumo
+    col_view1, col_view2 = st.columns([1, 1])
+    
+    with col_view1:
+        consumption_view_mode = st.radio(
+            "Modo de visualización de consumo:",
+            ["Semanal", "Diario"],
+            horizontal=True,
+            key="consumption_view_mode"
+        )
+    
     # Preparar datos para gráficos de consumo
     data_hist = data.copy()
-    data_hist['YearWeek'] = data_hist['Datetime'].dt.to_period('W').apply(lambda r: r.start_time)
-
-    # Calcular medias semanales
-    weekly_consumption = data_hist.groupby('YearWeek')[['TotalConsumption(W)', 'HeatingSystem(W)']].mean().reset_index()
-    weekly_consumption.columns = ['Fecha', 'Consumo Total (W)', 'Calefacción (W)']
+    
+    if consumption_view_mode == "Semanal":
+        # Vista semanal (comportamiento actual)
+        data_hist['YearWeek'] = data_hist['Datetime'].dt.to_period('W').apply(lambda r: r.start_time)
+        weekly_consumption = data_hist.groupby('YearWeek')[['TotalConsumption(W)', 'HeatingSystem(W)']].mean().reset_index()
+        weekly_consumption.columns = ['Fecha', 'Consumo Total (W)', 'Calefacción (W)']
+        consumption_data = weekly_consumption
+        date_format = '%b %Y'
+        tooltip_date_format = '%d %b %Y'
+        chart_title_suffix = " - Media Semanal"
+    else:
+        # Vista diaria con granularidad de 15 minutos
+        with col_view2:
+            min_date = data['Datetime'].min().date()
+            max_date = data['Datetime'].max().date()
+            
+            selected_consumption_date = st.date_input(
+                "Seleccionar día:",
+                value=min_date,
+                min_value=min_date,
+                max_value=max_date,
+                key="consumption_date_selector"
+            )
+        
+        # Filtrar datos para el día seleccionado
+        daily_data = data_hist[data_hist['Datetime'].dt.date == selected_consumption_date].copy()
+        daily_data = daily_data[['Datetime', 'TotalConsumption(W)', 'HeatingSystem(W)']].copy()
+        daily_data.columns = ['Fecha', 'Consumo Total (W)', 'Calefacción (W)']
+        consumption_data = daily_data
+        date_format = '%H:%M'
+        tooltip_date_format = '%H:%M'
+        chart_title_suffix = f" - {selected_consumption_date.strftime('%d/%m/%Y')}"
 
     cols = st.columns(2, gap='large')
 
     with cols[0]:
-        chart_total = alt.Chart(weekly_consumption).mark_area(
+        chart_total = alt.Chart(consumption_data).mark_area(
             line={'color': '#805AD5'},  # Púrpura
             color=alt.Gradient(
                 gradient='linear',
@@ -353,23 +562,32 @@ if page == "Histórico":
                 x1=0, x2=0, y1=0, y2=1
             )
         ).encode(
-            x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y', labelColor='#2d3748', titleColor='#2d3748')),
-            y=alt.Y('Consumo Total (W):Q', title='Consumo Total (W)', axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748')),
+            x=alt.X('Fecha:T', title='Fecha' if consumption_view_mode == 'Semanal' else 'Hora', 
+                    axis=alt.Axis(format=date_format, labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+            y=alt.Y('Consumo Total (W):Q', title='Consumo Total (W)', 
+                    axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
             tooltip=[
-                alt.Tooltip('Fecha:T', title='Semana', format='%d %b %Y'),
+                alt.Tooltip('Fecha:T', title='Semana' if consumption_view_mode == 'Semanal' else 'Hora', 
+                           format=tooltip_date_format),
                 alt.Tooltip('Consumo Total (W):Q', format='.2f', title='Consumo (W)')
             ]
         ).properties(
             height=400,
-            title=alt.TitleParams(text='🏠 Consumo Total', fontSize=18, color='#2d3748', anchor='start')
+            title=alt.TitleParams(text=f'Consumo Total{chart_title_suffix}', fontSize=18, color='#2d3748', anchor='middle')
+        ).configure(
+            background='white'
         ).configure_view(
-            strokeWidth=0
+            strokeWidth=0,
+            fill='white'
+        ).configure_axis(
+            gridColor='#f7fafc',
+            domainColor='#e2e8f0'
         ).interactive()
     
         st.altair_chart(chart_total, use_container_width=True)
 
     with cols[1]:
-        chart_heating = alt.Chart(weekly_consumption).mark_area(
+        chart_heating = alt.Chart(consumption_data).mark_area(
             line={'color': '#E53E3E'},  # Rojo para calefacción
             color=alt.Gradient(
                 gradient='linear',
@@ -380,17 +598,26 @@ if page == "Histórico":
                 x1=0, x2=0, y1=0, y2=1
             )
         ).encode(
-            x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y', labelColor='#2d3748', titleColor='#2d3748')),
-            y=alt.Y('Calefacción (W):Q', title='Consumo Calefacción (W)', axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748')),
+            x=alt.X('Fecha:T', title='Fecha' if consumption_view_mode == 'Semanal' else 'Hora', 
+                    axis=alt.Axis(format=date_format, labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+            y=alt.Y('Calefacción (W):Q', title='Consumo Calefacción (W)', 
+                    axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
             tooltip=[
-                alt.Tooltip('Fecha:T', title='Semana', format='%d %b %Y'),
+                alt.Tooltip('Fecha:T', title='Semana' if consumption_view_mode == 'Semanal' else 'Hora', 
+                           format=tooltip_date_format),
                 alt.Tooltip('Calefacción (W):Q', format='.2f', title='Calefacción (W)')
             ]
         ).properties(
             height=400,
-            title=alt.TitleParams(text='🔥 Sistema de Calefacción', fontSize=18, color='#2d3748', anchor='start')
+            title=alt.TitleParams(text=f'Sistema de Calefacción{chart_title_suffix}', fontSize=18, color='#2d3748', anchor='middle')
+        ).configure(
+            background='white'
         ).configure_view(
-            strokeWidth=0
+            strokeWidth=0,
+            fill='white'
+        ).configure_axis(
+            gridColor='#f7fafc',
+            domainColor='#e2e8f0'
         ).interactive()
     
         st.altair_chart(chart_heating, use_container_width=True)
@@ -496,17 +723,23 @@ if page == "Weather":
                 x1=0, x2=0, y1=0, y2=1
             )
         ).encode(
-            x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y', labelColor='#2d3748', titleColor='#2d3748')),
-            y=alt.Y('Temperatura Media (°C):Q', title='Temperatura Media (°C)', axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748')),
+            x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y', labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+            y=alt.Y('Temperatura Media (°C):Q', title='Temperatura Media (°C)', axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
             tooltip=[
                 alt.Tooltip('Fecha:T', title='Semana', format='%d %b %Y'),
                 alt.Tooltip('Temperatura Media (°C):Q', format='.2f', title='Temperatura (°C)')
             ]
         ).properties(
             height=400,
-            title=alt.TitleParams(text='🌡️ Temperatura', fontSize=18, color='#2d3748', anchor='start')
+            title=alt.TitleParams(text='🌡️ Temperatura', fontSize=18, color='#2d3748', anchor='middle')
+        ).configure(
+            background='white'
         ).configure_view(
-            strokeWidth=0
+            strokeWidth=0,
+            fill='white'
+        ).configure_axis(
+            gridColor='#f7fafc',
+            domainColor='#e2e8f0'
         ).interactive()
     
         st.altair_chart(chart, use_container_width=True)
@@ -523,17 +756,23 @@ if page == "Weather":
                 x1=0, x2=0, y1=0, y2=1
             )
         ).encode(
-            x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y', labelColor='#2d3748', titleColor='#2d3748')),
-            y=alt.Y('Precipitación Media (mm/h):Q', title='Precipitación Media (mm/h)', axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748')),
+            x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y', labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+            y=alt.Y('Precipitación Media (mm/h):Q', title='Precipitación Media (mm/h)', axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
             tooltip=[
                 alt.Tooltip('Fecha:T', title='Semana', format='%d %b %Y'),
                 alt.Tooltip('Precipitación Media (mm/h):Q', format='.2f', title='Precipitación (mm/h)')
             ]
         ).properties(
             height=400,
-            title=alt.TitleParams(text='💧 Precipitación', fontSize=18, color='#2d3748', anchor='start')
+            title=alt.TitleParams(text='💧 Precipitación', fontSize=18, color='#2d3748', anchor='middle')
+        ).configure(
+            background='white'
         ).configure_view(
-            strokeWidth=0
+            strokeWidth=0,
+            fill='white'
+        ).configure_axis(
+            gridColor='#f7fafc',
+            domainColor='#e2e8f0'
         ).interactive()
         
         st.altair_chart(chart_prec, use_container_width=True)
@@ -558,17 +797,23 @@ if page == "Weather":
             x1=0, x2=0, y1=0, y2=1
         )
     ).encode(
-        x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y', labelColor='#2d3748', titleColor='#2d3748')),
-        y=alt.Y('Radiación Media (W/m²):Q', title='Radiación Media (W/m²)', axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748')),
+        x=alt.X('Fecha:T', title='Fecha', axis=alt.Axis(format='%b %Y', labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
+        y=alt.Y('Radiación Media (W/m²):Q', title='Radiación Media (W/m²)', axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748', titlePadding=15)),
         tooltip=[
             alt.Tooltip('Fecha:T', title='Semana', format='%d %b %Y'),
             alt.Tooltip('Radiación Media (W/m²):Q', format='.2f', title='Radiación (W/m²)')
         ]
     ).properties(
         height=400,
-        title=alt.TitleParams(text='☀️ Radiación Solar', fontSize=18, color='#2d3748', anchor='start')
+        title=alt.TitleParams(text='☀️ Radiación Solar', fontSize=18, color='#2d3748', anchor='middle')
+    ).configure(
+        background='white'
     ).configure_view(
-        strokeWidth=0
+        strokeWidth=0,
+        fill='white'
+    ).configure_axis(
+        gridColor='#f7fafc',
+        domainColor='#e2e8f0'
     ).interactive()
     
     st.altair_chart(chart_rad, use_container_width=True)
