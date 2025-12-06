@@ -21,6 +21,118 @@ def load_data(path: str = "../data/inversor_data_with_heating.csv"):
     df['Datetime'] = pd.to_datetime(df['Datetime'])
     return df
 
+
+# =====================
+# Cached data processors
+# =====================
+@st.cache_data
+def compute_weekly_sources(df: pd.DataFrame):
+    data_stack = df.copy()
+    data_stack['YearWeek'] = data_stack['Datetime'].dt.to_period('W').apply(lambda r: r.start_time)
+    weekly_sources = data_stack.groupby('YearWeek')[['DirectConsumption(W)', 'ExternalEnergySupply(W)', 'BatteryDischarging(W)']].mean().reset_index()
+    weekly_sources.columns = ['Fecha', 'Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)']
+    stack_data = pd.melt(
+        weekly_sources,
+        id_vars=['Fecha'],
+        value_vars=['Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)'],
+        var_name='Fuente',
+        value_name='Potencia (W)'
+    )
+    return stack_data
+
+
+@st.cache_data
+def compute_daily_stack(df: pd.DataFrame, selected_date):
+    daily_stack_data = df[df['Datetime'].dt.date == selected_date].copy()
+    daily_stack_data = daily_stack_data[['Datetime', 'DirectConsumption(W)', 'ExternalEnergySupply(W)', 'BatteryDischarging(W)']].copy()
+    daily_stack_data.columns = ['Fecha', 'Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)']
+    stack_data = pd.melt(
+        daily_stack_data,
+        id_vars=['Fecha'],
+        value_vars=['Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)'],
+        var_name='Fuente',
+        value_name='Potencia (W)'
+    )
+    return stack_data
+
+
+@st.cache_data
+def compute_stack_full(df: pd.DataFrame):
+    stack_data_full = df[['Datetime', 'DirectConsumption(W)', 'ExternalEnergySupply(W)', 'BatteryDischarging(W)']].copy()
+    stack_data_full.columns = ['Fecha', 'Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)']
+    return stack_data_full
+
+
+@st.cache_data
+def compute_weekly_consumption(df: pd.DataFrame):
+    data_hist = df.copy()
+    data_hist['YearWeek'] = data_hist['Datetime'].dt.to_period('W').apply(lambda r: r.start_time)
+    weekly_consumption = data_hist.groupby('YearWeek')[['TotalConsumption(W)', 'HeatingSystem(W)']].mean().reset_index()
+    weekly_consumption.columns = ['Fecha', 'Consumo Total (W)', 'Calefacción (W)']
+    return weekly_consumption
+
+
+@st.cache_data
+def compute_daily_consumption(df: pd.DataFrame, selected_date):
+    daily_data = df[df['Datetime'].dt.date == selected_date].copy()
+    daily_data = daily_data[['Datetime', 'TotalConsumption(W)', 'HeatingSystem(W)']].copy()
+    daily_data.columns = ['Fecha', 'Consumo Total (W)', 'Calefacción (W)']
+    return daily_data
+
+
+@st.cache_data
+def compute_consumption_full(df: pd.DataFrame):
+    consumption_data_full = df[['Datetime', 'TotalConsumption(W)', 'HeatingSystem(W)']].copy()
+    consumption_data_full.columns = ['Fecha', 'Consumo Total (W)', 'Calefacción (W)']
+    return consumption_data_full
+
+
+@st.cache_data
+def compute_scatter_data(df: pd.DataFrame):
+    scatter_data = df[['Datetime', 'TotalConsumption(W)', 'HeatingSystem(W)', 'temperature', 'radiation']].copy()
+    scatter_data.columns = ['Datetime', 'Consumo Total (W)', 'Calefacción (W)', 'Temperatura (°C)', 'Radiación (W/m²)']
+
+    def get_time_slot_inner(hour):
+        if 0 <= hour < 4:
+            return '00:00 - 04:00'
+        elif 4 <= hour < 8:
+            return '04:00 - 08:00'
+        elif 8 <= hour < 12:
+            return '08:00 - 12:00'
+        elif 12 <= hour < 16:
+            return '12:00 - 16:00'
+        elif 16 <= hour < 20:
+            return '16:00 - 20:00'
+        else:
+            return '20:00 - 24:00'
+
+    scatter_data['Franja Horaria'] = scatter_data['Datetime'].dt.hour.apply(get_time_slot_inner)
+    return scatter_data
+
+
+@st.cache_data
+def compute_pv_data(df: pd.DataFrame):
+    pv_data = df[df['radiation'] > 0][['Datetime', 'PV_PowerGeneration(W)', 'temperature', 'radiation']].copy()
+    pv_data.columns = ['Datetime', 'Generación PV (W)', 'Temperatura (°C)', 'Radiación (W/m²)']
+
+    def get_time_slot_inner(hour):
+        if 0 <= hour < 4:
+            return '00:00 - 04:00'
+        elif 4 <= hour < 8:
+            return '04:00 - 08:00'
+        elif 8 <= hour < 12:
+            return '08:00 - 12:00'
+        elif 12 <= hour < 16:
+            return '12:00 - 16:00'
+        elif 16 <= hour < 20:
+            return '16:00 - 20:00'
+        else:
+            return '20:00 - 24:00'
+
+    pv_data['Franja Horaria'] = pv_data['Datetime'].dt.hour.apply(get_time_slot_inner)
+    return pv_data
+
+@st.cache_data
 def create_sankey_diagram(df):
     """Crea un diagrama Sankey mostrando las fuentes de consumo total"""
     
@@ -86,7 +198,7 @@ def show_navigation_menu():
             st.rerun()
     
     with col2:
-        if st.button("📊 DATOS HISTÓRICOS", key="nav_historico", use_container_width=True):
+        if st.button("📊 DATOS ENERGÉTICOS", key="nav_historico", use_container_width=True):
             st.session_state["page"] = "Histórico"
             st.rerun()
     
@@ -410,8 +522,8 @@ if page == "Inicio":
             st.rerun()
 
     with col2:
-        if st.button("📊 DATOS HISTÓRICOS", use_container_width=True):
-            st.session_state["page"] = "Histórico"
+        if st.button("📊 DATOS ENERGÉTICOS", use_container_width=True):
+            st.session_state["page"] = "Energético"
             st.rerun()
 
     with col3:
@@ -423,8 +535,8 @@ if page == "Inicio":
 # ============================================================================
 # Página de Datos Históricos
 # ============================================================================
-if page == "Histórico":
-    st.title("📊 Datos Históricos")
+if page == "Energético":
+    st.title("📊 Datos Energéticos")
     
     # Menú de navegación
     show_navigation_menu()
@@ -488,19 +600,8 @@ if page == "Histórico":
     data_stack = data.copy()
     
     if stack_view_mode == "Semanal":
-        # Vista semanal - medias
-        data_stack['YearWeek'] = data_stack['Datetime'].dt.to_period('W').apply(lambda r: r.start_time)
-        weekly_sources = data_stack.groupby('YearWeek')[['DirectConsumption(W)', 'ExternalEnergySupply(W)', 'BatteryDischarging(W)']].mean().reset_index()
-        weekly_sources.columns = ['Fecha', 'Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)']
-        
-        # Transformar a formato largo para stacked area
-        stack_data = pd.melt(
-            weekly_sources,
-            id_vars=['Fecha'],
-            value_vars=['Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)'],
-            var_name='Fuente',
-            value_name='Potencia (W)'
-        )
+        # Usar función cacheada para preparar datos semanales
+        stack_data = compute_weekly_sources(data)
         date_format_stack = '%b %Y'
         tooltip_date_format_stack = '%d %b %Y'
         stack_title_suffix = " - Media Semanal"
@@ -518,19 +619,8 @@ if page == "Histórico":
                 key="stack_date_selector"
             )
         
-        # Filtrar datos para el día seleccionado
-        daily_stack_data = data_stack[data_stack['Datetime'].dt.date == selected_stack_date].copy()
-        daily_stack_data = daily_stack_data[['Datetime', 'DirectConsumption(W)', 'ExternalEnergySupply(W)', 'BatteryDischarging(W)']].copy()
-        daily_stack_data.columns = ['Fecha', 'Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)']
-        
-        # Transformar a formato largo para stacked area
-        stack_data = pd.melt(
-            daily_stack_data,
-            id_vars=['Fecha'],
-            value_vars=['Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)'],
-            var_name='Fuente',
-            value_name='Potencia (W)'
-        )
+        # Filtrar datos para el día seleccionado (cacheado)
+        stack_data = compute_daily_stack(data, selected_stack_date)
         date_format_stack = '%H:%M'
         tooltip_date_format_stack = '%H:%M'
         stack_title_suffix = f" - {selected_stack_date.strftime('%d/%m/%Y')}"
@@ -547,9 +637,8 @@ if page == "Histórico":
                 key="stack_range_selector"
             )
         
-        # Cargar TODOS los datos con granularidad de 15 minutos
-        stack_data_full = data_stack[['Datetime', 'DirectConsumption(W)', 'ExternalEnergySupply(W)', 'BatteryDischarging(W)']].copy()
-        stack_data_full.columns = ['Fecha', 'Consumo Directo (W)', 'Suministro Externo (W)', 'Descarga Batería (W)']
+        # Cargar TODOS los datos con granularidad de 15 minutos (cacheado)
+        stack_data_full = compute_stack_full(data)
         
         if isinstance(date_range_stack, tuple) and len(date_range_stack) == 2:
             stack_x_range_start = pd.to_datetime(date_range_stack[0])
@@ -579,11 +668,17 @@ if page == "Histórico":
         ))
         fig_stack.update_layout(
             title={'text': 'Fuentes de Energía', 'x': 0.5, 'font': {'size': 18, 'color': '#2d3748'}},
-            xaxis=dict(title='Fecha', range=[stack_x_range_start, stack_x_range_end],
-                      rangeslider=dict(visible=True, thickness=0.05),
-                      titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
-            yaxis=dict(title='Potencia (W)', gridcolor='rgba(200,200,200,0.3)',
-                      titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
+            xaxis=dict(
+                title=dict(text='Fecha', font=dict(color='#2d3748')),
+                range=[stack_x_range_start, stack_x_range_end],
+                rangeslider=dict(visible=True, thickness=0.05),
+                tickfont=dict(color='#2d3748')
+            ),
+            yaxis=dict(
+                title=dict(text='Potencia (W)', font=dict(color='#2d3748')),
+                gridcolor='rgba(200,200,200,0.3)',
+                tickfont=dict(color='#2d3748')
+            ),
             legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, font=dict(color='#2d3748')),
             height=500, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
             margin=dict(l=60, r=20, t=80, b=80), hovermode='x unified'
@@ -656,10 +751,8 @@ if page == "Histórico":
     data_hist = data.copy()
     
     if consumption_view_mode == "Semanal":
-        # Vista semanal (comportamiento actual)
-        data_hist['YearWeek'] = data_hist['Datetime'].dt.to_period('W').apply(lambda r: r.start_time)
-        weekly_consumption = data_hist.groupby('YearWeek')[['TotalConsumption(W)', 'HeatingSystem(W)']].mean().reset_index()
-        weekly_consumption.columns = ['Fecha', 'Consumo Total (W)', 'Calefacción (W)']
+        # Vista semanal (comportamiento actual) - cacheada
+        weekly_consumption = compute_weekly_consumption(data)
         consumption_data = weekly_consumption
         date_format = '%b %Y'
         tooltip_date_format = '%d %b %Y'
@@ -678,11 +771,8 @@ if page == "Histórico":
                 key="consumption_date_selector"
             )
         
-        # Filtrar datos para el día seleccionado
-        daily_data = data_hist[data_hist['Datetime'].dt.date == selected_consumption_date].copy()
-        daily_data = daily_data[['Datetime', 'TotalConsumption(W)', 'HeatingSystem(W)']].copy()
-        daily_data.columns = ['Fecha', 'Consumo Total (W)', 'Calefacción (W)']
-        consumption_data = daily_data
+        # Filtrar datos para el día seleccionado (cacheado)
+        consumption_data = compute_daily_consumption(data, selected_consumption_date)
         date_format = '%H:%M'
         tooltip_date_format = '%H:%M'
         chart_title_suffix = f" - {selected_consumption_date.strftime('%d/%m/%Y')}"
@@ -699,9 +789,8 @@ if page == "Histórico":
                 key="consumption_range_selector"
             )
         
-        # Cargar TODOS los datos con granularidad de 15 minutos
-        consumption_data_full = data_hist[['Datetime', 'TotalConsumption(W)', 'HeatingSystem(W)']].copy()
-        consumption_data_full.columns = ['Fecha', 'Consumo Total (W)', 'Calefacción (W)']
+        # Cargar TODOS los datos con granularidad de 15 minutos (cacheado)
+        consumption_data_full = compute_consumption_full(data)
         
         if isinstance(date_range, tuple) and len(date_range) == 2:
             cons_x_range_start = pd.to_datetime(date_range[0])
@@ -727,11 +816,17 @@ if page == "Histórico":
             ))
             fig_cons_total.update_layout(
                 title={'text': 'Consumo Total', 'x': 0.5, 'font': {'size': 18, 'color': '#2d3748'}},
-                xaxis=dict(title='Fecha', range=[cons_x_range_start, cons_x_range_end],
-                          rangeslider=dict(visible=True, thickness=0.05),
-                          titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
-                yaxis=dict(title='Consumo Total (W)', gridcolor='rgba(200,200,200,0.3)',
-                          titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
+                xaxis=dict(
+                    title=dict(text='Fecha', font=dict(color='#2d3748')),
+                    range=[cons_x_range_start, cons_x_range_end],
+                    rangeslider=dict(visible=True, thickness=0.05),
+                    tickfont=dict(color='#2d3748')
+                ),
+                yaxis=dict(
+                    title=dict(text='Consumo Total (W)', font=dict(color='#2d3748')),
+                    gridcolor='rgba(200,200,200,0.3)',
+                    tickfont=dict(color='#2d3748')
+                ),
                 height=450, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=60, r=20, t=60, b=80)
             )
@@ -746,11 +841,17 @@ if page == "Histórico":
             ))
             fig_cons_heating.update_layout(
                 title={'text': 'Sistema de Calefacción', 'x': 0.5, 'font': {'size': 18, 'color': '#2d3748'}},
-                xaxis=dict(title='Fecha', range=[cons_x_range_start, cons_x_range_end],
-                          rangeslider=dict(visible=True, thickness=0.05),
-                          titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
-                yaxis=dict(title='Calefacción (W)', gridcolor='rgba(200,200,200,0.3)',
-                          titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
+                xaxis=dict(
+                    title=dict(text='Fecha', font=dict(color='#2d3748')),
+                    range=[cons_x_range_start, cons_x_range_end],
+                    rangeslider=dict(visible=True, thickness=0.05),
+                    tickfont=dict(color='#2d3748')
+                ),
+                yaxis=dict(
+                    title=dict(text='Calefacción (W)', font=dict(color='#2d3748')),
+                    gridcolor='rgba(200,200,200,0.3)',
+                    tickfont=dict(color='#2d3748')
+                ),
                 height=450, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=60, r=20, t=60, b=80)
             )
@@ -838,26 +939,8 @@ if page == "Histórico":
     st.subheader("🔗 Correlación Consumo vs Variables Meteorológicas")
     st.write("")
 
-    # Preparar datos para scatter plots con franja horaria
-    scatter_data = data[['Datetime', 'TotalConsumption(W)', 'HeatingSystem(W)', 'temperature', 'radiation']].copy()
-    scatter_data.columns = ['Datetime', 'Consumo Total (W)', 'Calefacción (W)', 'Temperatura (°C)', 'Radiación (W/m²)']
-    
-    # Crear columna de franja horaria
-    def get_time_slot(hour):
-        if 0 <= hour < 4:
-            return '00:00 - 04:00'
-        elif 4 <= hour < 8:
-            return '04:00 - 08:00'
-        elif 8 <= hour < 12:
-            return '08:00 - 12:00'
-        elif 12 <= hour < 16:
-            return '12:00 - 16:00'
-        elif 16 <= hour < 20:
-            return '16:00 - 20:00'
-        else:
-            return '20:00 - 24:00'
-    
-    scatter_data['Franja Horaria'] = scatter_data['Datetime'].dt.hour.apply(get_time_slot)
+    # Preparar datos para scatter plots con franja horaria (cacheado)
+    scatter_data = compute_scatter_data(data)
     
     # Colores para cada franja horaria (paleta distinguible)
     time_slot_colors = [
@@ -1049,12 +1132,8 @@ if page == "Histórico":
     st.markdown("<span style='color: #718096; font-size: 14px;'>*Solo datos con radiación solar > 0*</span>", unsafe_allow_html=True)
     st.write("")
 
-    # Filtrar datos donde hay radiación solar > 0
-    pv_data = data[data['radiation'] > 0][['Datetime', 'PV_PowerGeneration(W)', 'temperature', 'radiation']].copy()
-    pv_data.columns = ['Datetime', 'Generación PV (W)', 'Temperatura (°C)', 'Radiación (W/m²)']
-    
-    # Crear columna de franja horaria para colorear
-    pv_data['Franja Horaria'] = pv_data['Datetime'].dt.hour.apply(get_time_slot)
+    # Filtrar datos donde hay radiación solar > 0 (cacheado)
+    pv_data = compute_pv_data(data)
 
     # Selecciones interactivas para los scatter plots de PV
     selection_pv1 = alt.selection_point(fields=['Franja Horaria'], bind='legend')
@@ -1297,8 +1376,7 @@ if page == "Histórico":
             'font': {'size': 20, 'color': '#2d3748', 'family': 'Poppins'}
         },
         xaxis=dict(
-            title='Fecha',
-            titlefont=dict(color='#2d3748'),
+            title=dict(text='Fecha', font=dict(color='#2d3748')),
             tickfont=dict(color='#2d3748'),
             gridcolor='rgba(200, 200, 200, 0.3)',
             domain=[0.12, 0.82],
@@ -1307,8 +1385,7 @@ if page == "Histórico":
             rangeslider=dict(visible=True, thickness=0.05)
         ),
         yaxis=dict(
-            title='Temperatura (°C)',
-            titlefont=dict(color='#EF4444'),
+            title=dict(text='Temperatura (°C)', font=dict(color='#EF4444')),
             tickfont=dict(color='#EF4444'),
             gridcolor='rgba(200, 200, 200, 0.3)',
             side='left',
@@ -1319,8 +1396,7 @@ if page == "Histórico":
             zerolinewidth=1
         ),
         yaxis2=dict(
-            title='Consumo Total (W)',
-            titlefont=dict(color='#805AD5'),
+            title=dict(text='Consumo Total (W)', font=dict(color='#805AD5')),
             tickfont=dict(color='#805AD5'),
             overlaying='y',
             side='right',
@@ -1333,8 +1409,7 @@ if page == "Histórico":
             zerolinewidth=1
         ),
         yaxis3=dict(
-            title='Calefacción (W)',
-            titlefont=dict(color='#38A169'),
+            title=dict(text='Calefacción (W)', font=dict(color='#38A169')),
             tickfont=dict(color='#38A169'),
             overlaying='y',
             side='right',
@@ -1347,8 +1422,7 @@ if page == "Histórico":
             zerolinewidth=1
         ),
         yaxis4=dict(
-            title='Radiación (W/m²)',
-            titlefont=dict(color='#F97316'),
+            title=dict(text='Radiación (W/m²)', font=dict(color='#F97316')),
             tickfont=dict(color='#F97316'),
             overlaying='y',
             side='left',
@@ -1403,6 +1477,7 @@ if page == "Predicciones":
     import os
     from pathlib import Path
     
+    @st.cache_resource
     def get_prediction_service():
         """Carga el servicio de predicción BentoML"""
         try:
@@ -1895,11 +1970,17 @@ if page == "Weather":
             ))
             fig_temp.update_layout(
                 title={'text': '🌡️ Temperatura', 'x': 0.5, 'font': {'size': 18, 'color': '#2d3748'}},
-                xaxis=dict(title='Fecha', range=[weather_x_range_start, weather_x_range_end],
-                          rangeslider=dict(visible=True, thickness=0.05),
-                          titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
-                yaxis=dict(title='Temperatura (°C)', gridcolor='rgba(200,200,200,0.3)',
-                          titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
+                xaxis=dict(
+                    title=dict(text='Fecha', font=dict(color='#2d3748')),
+                    range=[weather_x_range_start, weather_x_range_end],
+                    rangeslider=dict(visible=True, thickness=0.05),
+                    tickfont=dict(color='#2d3748')
+                ),
+                yaxis=dict(
+                    title=dict(text='Temperatura (°C)', font=dict(color='#2d3748')),
+                    gridcolor='rgba(200,200,200,0.3)',
+                    tickfont=dict(color='#2d3748')
+                ),
                 height=450, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=60, r=20, t=60, b=80)
             )
@@ -1918,11 +1999,17 @@ if page == "Weather":
             ))
             fig_prec.update_layout(
                 title={'text': '💧 Precipitación', 'x': 0.5, 'font': {'size': 18, 'color': '#2d3748'}},
-                xaxis=dict(title='Fecha', range=[weather_x_range_start, weather_x_range_end],
-                          rangeslider=dict(visible=True, thickness=0.05),
-                          titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
-                yaxis=dict(title='Precipitación (mm/h)', gridcolor='rgba(200,200,200,0.3)',
-                          titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
+                xaxis=dict(
+                    title=dict(text='Fecha', font=dict(color='#2d3748')),
+                    range=[weather_x_range_start, weather_x_range_end],
+                    rangeslider=dict(visible=True, thickness=0.05),
+                    tickfont=dict(color='#2d3748')
+                ),
+                yaxis=dict(
+                    title=dict(text='Precipitación (mm/h)', font=dict(color='#2d3748')),
+                    gridcolor='rgba(200,200,200,0.3)',
+                    tickfont=dict(color='#2d3748')
+                ),
                 height=450, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=60, r=20, t=60, b=80)
             )
@@ -2075,11 +2162,17 @@ if page == "Weather":
         ))
         fig_rad.update_layout(
             title={'text': '☀️ Radiación Solar', 'x': 0.5, 'font': {'size': 18, 'color': '#2d3748'}},
-            xaxis=dict(title='Fecha', range=[weather_x_range_start, weather_x_range_end],
-                      rangeslider=dict(visible=True, thickness=0.05),
-                      titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
-            yaxis=dict(title='Radiación (W/m²)', gridcolor='rgba(200,200,200,0.3)',
-                      titlefont=dict(color='#2d3748'), tickfont=dict(color='#2d3748')),
+            xaxis=dict(
+                title=dict(text='Fecha', font=dict(color='#2d3748')),
+                range=[weather_x_range_start, weather_x_range_end],
+                rangeslider=dict(visible=True, thickness=0.05),
+                tickfont=dict(color='#2d3748')
+            ),
+            yaxis=dict(
+                title=dict(text='Radiación (W/m²)', font=dict(color='#2d3748')),
+                gridcolor='rgba(200,200,200,0.3)',
+                tickfont=dict(color='#2d3748')
+            ),
             height=450, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
             margin=dict(l=60, r=20, t=60, b=80)
         )
@@ -2235,8 +2328,7 @@ if page == "Weather":
             'font': {'size': 20, 'color': '#2d3748', 'family': 'Poppins'}
         },
         xaxis=dict(
-            title='Fecha',
-            titlefont=dict(color='#2d3748'),
+            title=dict(text='Fecha', font=dict(color='#2d3748')),
             tickfont=dict(color='#2d3748'),
             gridcolor='rgba(200, 200, 200, 0.3)',
             domain=[0.1, 0.85],
@@ -2245,8 +2337,7 @@ if page == "Weather":
             rangeslider=dict(visible=True, thickness=0.05)
         ),
         yaxis=dict(
-            title='Temperatura (°C)',
-            titlefont=dict(color='#EF4444'),
+            title=dict(text='Temperatura (°C)', font=dict(color='#EF4444')),
             tickfont=dict(color='#EF4444'),
             gridcolor='rgba(200, 200, 200, 0.3)',
             side='left',
@@ -2257,8 +2348,7 @@ if page == "Weather":
             zerolinewidth=1
         ),
         yaxis2=dict(
-            title='Precipitación (mm/h)',
-            titlefont=dict(color='#3B82F6'),
+            title=dict(text='Precipitación (mm/h)', font=dict(color='#3B82F6')),
             tickfont=dict(color='#3B82F6'),
             overlaying='y',
             side='right',
@@ -2271,8 +2361,7 @@ if page == "Weather":
             zerolinewidth=1
         ),
         yaxis3=dict(
-            title='Radiación (W/m²)',
-            titlefont=dict(color='#F97316'),
+            title=dict(text='Radiación (W/m²)', font=dict(color='#F97316')),
             tickfont=dict(color='#F97316'),
             overlaying='y',
             side='right',
