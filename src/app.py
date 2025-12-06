@@ -187,6 +187,72 @@ def create_sankey_diagram(df):
     
     return fig
 
+def create_sankey_diagram_heating_system(df):
+    """Crea un diagrama Sankey mostrando las fuentes del sistema de calefacción"""
+    
+    # Calcular el consumo total de calefacción
+    total_heating = df['HeatingSystem(W)'].sum() / 1000
+    
+    # Calcular totales de cada fuente
+    total_direct = df['DirectConsumption(W)'].sum() / 1000
+    total_battery = df['BatteryDischarging(W)'].sum() / 1000
+    total_external = df['ExternalEnergySupply(W)'].sum() / 1000
+    total_consumption = df['TotalConsumption(W)'].sum() / 1000
+    
+    # Calcular proporción de cada fuente destinada a calefacción
+    heating_ratio = total_heating / total_consumption if total_consumption > 0 else 0
+    
+    heating_direct = total_direct * heating_ratio
+    heating_battery = total_battery * heating_ratio
+    heating_external = total_external * heating_ratio
+    
+    # Crear Sankey
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=15,
+            thickness=20,
+            line=dict(color='#cbd5e0', width=2),
+            label=[
+                "Direct PV\n(Heating)",
+                "Battery\n(Heating)",
+                "External Grid\n(Heating)",
+                "Heating System\nTotal"
+            ],
+            color=["#FFA07A", "#87CEEB", "#98FB98", "#FF6347"],
+            x=[0.1, 0.1, 0.1, 0.9],
+            y=[0.1, 0.5, 0.9, 0.5]
+        ),
+        link=dict(
+            source=[0, 1, 2],
+            target=[3, 3, 3],
+            value=[heating_direct, heating_battery, heating_external],
+            color=[
+                "rgba(255,140,0,0.4)",    # naranja oscuro
+                "rgba(70,130,180,0.4)",   # azul acero
+                "rgba(34,139,34,0.4)"     # verde bosque
+            ]
+        )
+    )])
+    
+    fig.update_layout(
+        title={
+            'text': "Heating System Energy Sources Flow",
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 24, 'color': '#000000', 'family': 'Poppins'}
+        },
+        font=dict(size=14, family="Inter", color='#000000'),
+        height=600,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=20, r=20, t=80, b=20)
+    )
+    
+    fig.update_traces(textfont=dict(color='black', size=14, family='Inter'))
+    
+    return fig
+
+
 def show_navigation_menu():
     """Muestra el menú de navegación entre páginas"""
     st.markdown("---")
@@ -578,6 +644,10 @@ if page == "Energético":
         # Actualizar título del gráfico
         sankey_fig.update_layout(title_text=chart_title)
         st.plotly_chart(sankey_fig, use_container_width=True)
+
+        sankey_heating_fig = create_sankey_diagram_heating_system(filtered_data)
+        st.plotly_chart(sankey_heating_fig, use_container_width=True)
+        
 
     st.divider()
 
