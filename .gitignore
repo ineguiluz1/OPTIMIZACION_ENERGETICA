@@ -1,2 +1,9 @@
 # Private data
 data/
+
+
+__pycache__/
+*.pyc
+**/__pycache__/
+*.pyo
+*.pyd
