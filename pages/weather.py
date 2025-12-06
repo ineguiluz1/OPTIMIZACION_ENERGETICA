@@ -56,7 +56,7 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
     if raw_data:
         st.dataframe(
             data[['Datetime', 'temperature', 'precipitation', 'WindSpeed', 'radiation']],
-            use_container_width=True
+            width='stretch'
         )
 
     st.divider()
@@ -180,7 +180,7 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
                 height=450, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=60, r=20, t=60, b=80)
             )
-            st.plotly_chart(fig_temp, use_container_width=True)
+            st.plotly_chart(fig_temp, width='stretch')
         
         with cols_plotly[1]:
             fig_prec = go.Figure()
@@ -209,9 +209,9 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
                 height=450, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=60, r=20, t=60, b=80)
             )
-            st.plotly_chart(fig_prec, use_container_width=True)
+            st.plotly_chart(fig_prec, width='stretch')
     
-    # Solo mostrar gráficos de Altair si no es Periodo Específico
+    # Solo mostrar Altair si no es Periodo Específico
     if weather_view_mode != "Periodo Específico":
         cols = st.columns([1, 1], gap='large')
 
@@ -249,7 +249,7 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
                 domainColor='#e2e8f0'
             ).interactive()
         
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart, width='stretch')
 
         with cols[1]:
             chart_prec = alt.Chart(prec_data).mark_area(
@@ -285,11 +285,9 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
                 domainColor='#e2e8f0'
             ).interactive()
             
-            st.altair_chart(chart_prec, use_container_width=True)
+            st.altair_chart(chart_prec, width='stretch')
 
-        st.divider()
-
-        # Gráfico de Radiación (solo para Semanal/Diario)
+        st.divider()        # Gráfico de Radiación (solo para Semanal/Diario)
         st.markdown("### ☀️ Radiación (2024 - 2025)")
         st.write("")
         
@@ -335,7 +333,7 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
             domainColor='#e2e8f0'
         ).interactive()
         
-        st.altair_chart(chart_rad, use_container_width=True)
+        st.altair_chart(chart_rad, width='stretch')
     
     else:
         # Gráfico de Radiación para Periodo Específico (Plotly)
@@ -372,7 +370,7 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
             height=450, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
             margin=dict(l=60, r=20, t=60, b=80)
         )
-        st.plotly_chart(fig_rad, use_container_width=True)
+        st.plotly_chart(fig_rad, width='stretch')
 
     st.divider()
 
@@ -584,4 +582,4 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
         hovermode='x unified'
     )
     
-    st.plotly_chart(fig_combined, use_container_width=True)
+    st.plotly_chart(fig_combined, width='stretch')

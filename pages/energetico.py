@@ -50,10 +50,10 @@ def render(data):
         sankey_fig = create_sankey_diagram(filtered_data)
         # Actualizar título del gráfico
         sankey_fig.update_layout(title_text=chart_title)
-        st.plotly_chart(sankey_fig, use_container_width=True)
+        st.plotly_chart(sankey_fig, width='stretch')
 
         sankey_heating_fig = create_sankey_diagram_heating_system(filtered_data)
-        st.plotly_chart(sankey_heating_fig, use_container_width=True)
+        st.plotly_chart(sankey_heating_fig, width='stretch')
         
 
     st.divider()
@@ -160,7 +160,7 @@ def render(data):
             height=500, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
             margin=dict(l=60, r=20, t=80, b=80), hovermode='x unified'
         )
-        st.plotly_chart(fig_stack, use_container_width=True)
+        st.plotly_chart(fig_stack, width='stretch')
         
         # Marcar que usamos Plotly
         stack_view_mode_plotly = True
@@ -206,7 +206,7 @@ def render(data):
             titleColor='#2d3748'
         ).interactive()
         
-        st.altair_chart(stacked_chart, use_container_width=True)
+        st.altair_chart(stacked_chart, width='stretch')
 
     st.divider()
 
@@ -307,7 +307,7 @@ def render(data):
                 height=450, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=60, r=20, t=60, b=80)
             )
-            st.plotly_chart(fig_cons_total, use_container_width=True)
+            st.plotly_chart(fig_cons_total, width='stretch')
         
         with cols_plotly_cons[1]:
             fig_cons_heating = go.Figure()
@@ -332,7 +332,7 @@ def render(data):
                 height=450, plot_bgcolor='white', paper_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=60, r=20, t=60, b=80)
             )
-            st.plotly_chart(fig_cons_heating, use_container_width=True)
+            st.plotly_chart(fig_cons_heating, width='stretch')
     
     # Solo mostrar Altair si no es Periodo Específico
     if consumption_view_mode != "Periodo Específico":
@@ -372,7 +372,7 @@ def render(data):
                 domainColor='#e2e8f0'
             ).interactive()
         
-            st.altair_chart(chart_total, use_container_width=True)
+            st.altair_chart(chart_total, width='stretch')
 
         with cols[1]:
             chart_heating = alt.Chart(consumption_data).mark_area(
@@ -408,7 +408,7 @@ def render(data):
                 domainColor='#e2e8f0'
             ).interactive()
         
-            st.altair_chart(chart_heating, use_container_width=True)
+            st.altair_chart(chart_heating, width='stretch')
 
     st.divider()
 
@@ -519,7 +519,7 @@ def render(data):
             titleColor='#2d3748'
         ).interactive()
         
-        st.altair_chart(scatter_temp_total, use_container_width=True)
+        st.altair_chart(scatter_temp_total, width='stretch')
 
     with scatter_cols1[1]:
         scatter_rad_total = alt.Chart(scatter_data).mark_circle(
@@ -558,7 +558,7 @@ def render(data):
             titleColor='#2d3748'
         ).interactive()
         
-        st.altair_chart(scatter_rad_total, use_container_width=True)
+        st.altair_chart(scatter_rad_total, width='stretch')
 
     st.write("")
 
@@ -602,7 +602,7 @@ def render(data):
             titleColor='#2d3748'
         ).interactive()
         
-        st.altair_chart(scatter_temp_heating, use_container_width=True)
+        st.altair_chart(scatter_temp_heating, width='stretch')
 
     with scatter_cols2[1]:
         scatter_rad_heating = alt.Chart(scatter_data).mark_circle(
@@ -641,7 +641,7 @@ def render(data):
             titleColor='#2d3748'
         ).interactive()
         
-        st.altair_chart(scatter_rad_heating, use_container_width=True)
+        st.altair_chart(scatter_rad_heating, width='stretch')
 
     st.divider()
 
@@ -737,7 +737,7 @@ def render(data):
             titleColor='#2d3748'
         ).interactive()
         
-        st.altair_chart(scatter_pv_temp, use_container_width=True)
+        st.altair_chart(scatter_pv_temp, width='stretch')
 
     with scatter_pv_cols[1]:
         scatter_pv_rad = alt.Chart(pv_data).mark_circle(
@@ -776,7 +776,7 @@ def render(data):
             titleColor='#2d3748'
         ).interactive()
         
-        st.altair_chart(scatter_pv_rad, use_container_width=True)
+        st.altair_chart(scatter_pv_rad, width='stretch')
 
     st.divider()
 
@@ -1008,7 +1008,7 @@ def render(data):
         hovermode='x unified'
     )
     
-    st.plotly_chart(fig_hist_combined, use_container_width=True)
+    st.plotly_chart(fig_hist_combined, width='stretch')
 
 
 # ============================================================================

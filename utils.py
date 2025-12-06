@@ -249,17 +249,17 @@ def show_navigation_menu():
     col1, col2, col3 = st.columns(3, gap="medium")
     
     with col1:
-        if st.button("🌤️ METEOROLOGÍA", key="nav_weather", use_container_width=True):
+        if st.button("🌤️ METEOROLOGÍA", key="nav_weather", width='stretch'):
             st.session_state["page"] = "Weather"
             st.rerun()
     
     with col2:
-        if st.button("📊 DATOS ENERGÉTICOS", key="nav_historico", use_container_width=True):
+        if st.button("📊 DATOS ENERGÉTICOS", key="nav_historico", width='stretch'):
             st.session_state["page"] = "Energético"
             st.rerun()
     
     with col3:
-        if st.button("🔮 PREDICCIONES", key="nav_realtime", use_container_width=True):
+        if st.button("🔮 PREDICCIONES", key="nav_realtime", width='stretch'):
             st.session_state["page"] = "Predicciones"
             st.rerun()
     
@@ -451,6 +451,40 @@ def apply_custom_css():
             color: #2d3748;
             font-weight: 500;
         }
+        
+        /* Expander: fondo blanco y texto negro */
+        div[data-testid="stExpander"] {
+            background-color: white !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 8px !important;
+        }
+        
+        div[data-testid="stExpander"] > div {
+            background-color: white !important;
+        }
+        
+        /* Header del expander */
+        div[data-testid="stExpander"] summary {
+            background-color: white !important;
+            color: #2d3748 !important;
+        }
+        
+        div[data-testid="stExpander"] summary:hover {
+            background-color: #f7fafc !important;
+        }
+        
+        /* Contenido del expander */
+        div[data-testid="stExpander"] > div > div {
+            background-color: white !important;
+            color: #0f1724 !important;
+        }
+        
+        /* Texto dentro del expander */
+        div[data-testid="stExpander"] p,
+        div[data-testid="stExpander"] span,
+        div[data-testid="stExpander"] div {
+            color: #0f1724 !important;
+        }
 
         /* Estilos para widgets (Radio, DateInput) */
         .stRadio > label, .stDateInput > label {
@@ -475,6 +509,7 @@ def apply_custom_css():
             transition: all 0.2s ease !important;
             font-size: 14px !important;
             padding: 2px 8px !important;
+            background-color: white !important;
         }
         
         div[data-baseweb="input"]:hover {
@@ -487,10 +522,193 @@ def apply_custom_css():
             box-shadow: 0 0 0 3px rgba(128, 90, 213, 0.1) !important;
         }
         
-        input[type="date"], input[type="text"] {
+        /* Inputs: usar texto oscuro para tema claro (evita texto blanco sobre fondo claro) */
+        input[type="date"], input[type="text"], input[type="number"], textarea {
             font-size: 14px !important;
-            color: #ffffff !important;
+            color: #0f1724 !important;
+            background-color: white !important;
             font-family: 'Inter', sans-serif !important;
+        }
+        
+        /* Selectbox: eliminar todos los fondos oscuros */
+        div[data-testid="stSelectbox"] {
+            background-color: transparent !important;
+        }
+        
+        div[data-testid="stSelectbox"] > div {
+            background-color: transparent !important;
+        }
+        
+        div[data-baseweb="select"] {
+            background-color: transparent !important;
+            border-radius: 8px !important;
+        }
+        
+        div[data-baseweb="select"] > div {
+            background-color: white !important;
+            color: #0f1724 !important;
+            border: 1.5px solid #cbd5e0 !important;
+            border-radius: 8px !important;
+        }
+        
+        div[data-baseweb="select"]:hover > div {
+            border-color: #805AD5 !important;
+        }
+        
+        /* Texto dentro de selectbox */
+        div[data-baseweb="select"] span,
+        div[data-baseweb="select"] div {
+            color: #0f1724 !important;
+        }
+        
+        /* Dropdown del selectbox */
+        div[role="listbox"] {
+            background-color: white !important;
+        }
+        
+        div[role="option"] {
+            background-color: white !important;
+            color: #0f1724 !important;
+        }
+        
+        div[role="option"]:hover {
+            background-color: #f7fafc !important;
+        }
+        
+        /* Text input: eliminar completamente fondos oscuros */
+        div[data-testid="stTextInput"] {
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        div[data-testid="stTextInput"] > div {
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        div[data-testid="stTextInput"] > div > div {
+            background-color: transparent !important;
+            border: none !important;
+        }
+        
+        div[data-testid="stTextInput"] input {
+            background-color: white !important;
+            color: #0f1724 !important;
+            border: 1.5px solid #cbd5e0 !important;
+            border-radius: 8px !important;
+        }
+        
+        div[data-testid="stTextInput"] input:focus {
+            border-color: #805AD5 !important;
+            box-shadow: 0 0 0 3px rgba(128, 90, 213, 0.1) !important;
+        }
+        
+        /* Labels de inputs y selectbox: forzar transparencia total */
+        div[data-testid="stSelectbox"] label,
+        div[data-testid="stTextInput"] label {
+            color: #2d3748 !important;
+            font-weight: 600 !important;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        /* Eliminar fondos oscuros de todos los contenedores internos */
+        div[data-testid="stTextInput"] *:not(input),
+        div[data-testid="stSelectbox"] *:not(div[data-baseweb="select"] > div) {
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        /* File uploader: fondo blanco y texto oscuro para visibilidad */
+        div[data-testid="stFileUploader"] {
+            background: white !important;
+            color: #0f1724 !important;
+            border-radius: 8px !important;
+            padding: 8px !important;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
+        }
+
+        /* Forzar color en el input de archivo y en los labels internos */
+        div[data-testid="stFileUploader"] input[type="file"] {
+            color: #0f1724 !important;
+        }
+        div[data-testid="stFileUploader"] label, div[data-testid="stFileUploader"] p {
+            color: #0f1724 !important;
+        }
+        
+        /* Dropzone (área de drag and drop): fondo blanco y texto negro */
+        div[data-testid="stFileUploader"] section[data-testid="stFileUploaderDropzone"],
+        div[data-testid="stFileUploader"] section,
+        div[data-testid="stFileUploader"] > div > section {
+            background-color: white !important;
+            border: 2px dashed #cbd5e0 !important;
+            border-radius: 8px !important;
+        }
+        
+        /* Texto dentro del dropzone: todo en negro */
+        div[data-testid="stFileUploader"] section span,
+        div[data-testid="stFileUploader"] section small,
+        div[data-testid="stFileUploader"] section p,
+        section[data-testid="stFileUploaderDropzone"] span,
+        section[data-testid="stFileUploaderDropzone"] small {
+            color: #0f1724 !important;
+        }
+        
+        /* Botón "Browse files": fondo blanco y texto negro */
+        div[data-testid="stFileUploader"] button,
+        section[data-testid="stFileUploaderDropzone"] button {
+            background-color: white !important;
+            color: #0f1724 !important;
+            border: 1.5px solid #cbd5e0 !important;
+            border-radius: 6px !important;
+            padding: 6px 16px !important;
+            font-weight: 600 !important;
+        }
+        
+        div[data-testid="stFileUploader"] button:hover {
+            background-color: #f7fafc !important;
+            border-color: #805AD5 !important;
+        }
+        
+        /* Información del archivo subido (debajo del dropzone): texto negro sobre fondo blanco */
+        div[data-testid="stFileUploader"] > div > div:not(section) {
+            background-color: white !important;
+            color: #0f1724 !important;
+        }
+        
+        div[data-testid="stFileUploader"] span[data-testid="stMarkdownContainer"],
+        div[data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] {
+            color: #0f1724 !important;
+        }
+        
+        /* Archivo seleccionado (nombre del archivo debajo del dropzone): texto negro visible */
+        div[data-testid="stFileUploader"] [data-testid="stFileUploaderFileName"],
+        div[data-testid="stFileUploader"] div[data-testid="stFileUploaderFileName"] span,
+        div[data-testid="stFileUploader"] div[role="button"] span,
+        div[data-testid="stFileUploader"] li span,
+        div[data-testid="stFileUploader"] ul li {
+            color: #0f1724 !important;
+            background-color: transparent !important;
+        }
+        
+        /* Forzar visibilidad del texto del archivo en todos los contextos */
+        div[data-testid="stFileUploader"] * {
+            color: #0f1724 !important;
+        }
+        
+        /* Excepción: mantener el icono y botón browse con sus colores */
+        div[data-testid="stFileUploader"] svg,
+        div[data-testid="stFileUploader"] button {
+            color: initial;
+        }
+        
+        div[data-testid="stFileUploader"] button {
+            color: #0f1724 !important;
         }
         
         /* Contenedores de gráficos con fondo blanco */
@@ -523,6 +741,150 @@ def apply_custom_css():
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        /* Tablas Streamlit: FORZAR TEMA CLARO */
+        /* Contenedor principal con fondo blanco */
+        div[data-testid="stDataFrame"],
+        div[data-testid="stTable"] {
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e0 !important;
+            border-radius: 8px !important;
+            overflow: hidden !important;
+        }
+        
+        /* Todos los contenedores internos con fondo blanco */
+        div[data-testid="stDataFrame"] > div,
+        div[data-testid="stTable"] > div,
+        div[data-testid="stDataFrame"] > div > div,
+        div[data-testid="stTable"] > div > div {
+            background-color: #ffffff !important;
+        }
+        
+        /* Canvas: invertir con ajustes para lograr blanco puro */
+        div[data-testid="stDataFrame"] canvas,
+        div[data-testid="stTable"] canvas {
+            filter: invert(1) hue-rotate(180deg) brightness(1.05) contrast(0.95) !important;
+        }
+        
+        /* Headers de tabla - fondo gris claro y texto oscuro */
+        div[data-testid="stDataFrame"] th,
+        div[data-testid="stTable"] th,
+        div[data-testid="stDataFrame"] thead th,
+        div[data-testid="stTable"] thead th,
+        .dataframe thead th,
+        table thead th {
+            background-color: #e2e8f0 !important;
+            color: #1a202c !important;
+            font-weight: 700 !important;
+            border: 1px solid #cbd5e0 !important;
+            padding: 8px 12px !important;
+        }
+        
+        /* Celdas de tabla - fondo blanco y texto oscuro */
+        div[data-testid="stDataFrame"] td,
+        div[data-testid="stTable"] td,
+        div[data-testid="stDataFrame"] tbody td,
+        div[data-testid="stTable"] tbody td,
+        .dataframe tbody td,
+        table tbody td {
+            background-color: white !important;
+            color: #1a202c !important;
+            border: 1px solid #e2e8f0 !important;
+            padding: 8px 12px !important;
+        }
+        
+        /* Filas de tabla */
+        div[data-testid="stDataFrame"] tr,
+        div[data-testid="stTable"] tr,
+        .dataframe tr,
+        table tr {
+            background-color: white !important;
+        }
+        
+        /* Filas alternadas con gris muy claro */
+        div[data-testid="stDataFrame"] tr:nth-child(even) td,
+        div[data-testid="stTable"] tr:nth-child(even) td,
+        div[data-testid="stDataFrame"] tbody tr:nth-child(even) td,
+        div[data-testid="stTable"] tbody tr:nth-child(even) td,
+        .dataframe tbody tr:nth-child(even) td,
+        table tbody tr:nth-child(even) td {
+            background-color: #f7fafc !important;
+        }
+        
+        /* Hover en filas */
+        div[data-testid="stDataFrame"] tr:hover td,
+        div[data-testid="stTable"] tr:hover td,
+        div[data-testid="stDataFrame"] tbody tr:hover td,
+        div[data-testid="stTable"] tbody tr:hover td,
+        .dataframe tbody tr:hover td,
+        table tbody tr:hover td {
+            background-color: #edf2f7 !important;
+        }
+        
+        /* Índice de la tabla (primera columna) */
+        div[data-testid="stDataFrame"] tbody th,
+        div[data-testid="stTable"] tbody th,
+        .dataframe tbody th,
+        table tbody th {
+            background-color: #edf2f7 !important;
+            color: #2d3748 !important;
+            font-weight: 600 !important;
+            border: 1px solid #cbd5e0 !important;
+            padding: 8px 12px !important;
+        }
+        
+        /* Contenedor de tabla */
+        .dataframe-container,
+        div.dataframe-container,
+        div[class*="dataframe"] {
+            background-color: white !important;
+        }
+        
+        /* Para tablas con virtualización/scroll - GRID */
+        div[data-testid="stDataFrame"] [role="grid"],
+        div[data-testid="stTable"] [role="grid"] {
+            background-color: white !important;
+            border: 1px solid #cbd5e0 !important;
+        }
+        
+        /* Filas en grid */
+        div[data-testid="stDataFrame"] [role="row"],
+        div[data-testid="stTable"] [role="row"] {
+            background-color: white !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+        
+        /* Celdas en grid (gridcell) */
+        div[data-testid="stDataFrame"] [role="gridcell"],
+        div[data-testid="stTable"] [role="gridcell"] {
+            background-color: white !important;
+            color: #1a202c !important;
+            border-right: 1px solid #e2e8f0 !important;
+            padding: 8px 12px !important;
+        }
+        
+        /* Headers en grids virtualizados (columnheader) */
+        div[data-testid="stDataFrame"] [role="columnheader"],
+        div[data-testid="stTable"] [role="columnheader"] {
+            background-color: #e2e8f0 !important;
+            color: #1a202c !important;
+            font-weight: 700 !important;
+            border-right: 1px solid #cbd5e0 !important;
+            border-bottom: 2px solid #cbd5e0 !important;
+            padding: 8px 12px !important;
+        }
+        
+        /* Texto dentro de celdas y headers - asegurar visibilidad */
+        div[data-testid="stDataFrame"] [role="gridcell"] *,
+        div[data-testid="stTable"] [role="gridcell"] *,
+        div[data-testid="stDataFrame"] [role="columnheader"] *,
+        div[data-testid="stTable"] [role="columnheader"] *,
+        div[data-testid="stDataFrame"] td *,
+        div[data-testid="stTable"] td *,
+        div[data-testid="stDataFrame"] th *,
+        div[data-testid="stTable"] th * {
+            color: inherit !important;
         }
         
         /* Ocultar elementos de Streamlit */
