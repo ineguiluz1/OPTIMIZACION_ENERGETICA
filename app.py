@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # Import pages
-from pages import home, energetico, predicciones, weather
+from pages import home, energetico, predicciones, predicciones_pv, train_pv, weather
 from utils import load_data, apply_custom_css
 
 # Configuración de página
@@ -45,5 +45,9 @@ elif page == "Energético":
     energetico.render(data)
 elif page == "Predicciones":
     predicciones.render(data)
+elif page == "Entrenar PV":
+    train_pv.render()
+elif page == "Predicciones PV":
+    predicciones_pv.render()
 elif page == "Weather":
     weather.render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, radiation_min, radiation_max)

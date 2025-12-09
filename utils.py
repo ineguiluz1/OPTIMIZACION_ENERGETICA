@@ -246,7 +246,7 @@ def create_sankey_diagram_heating_system(df):
 def show_navigation_menu():
     """Muestra el menú de navegación entre páginas"""
     st.markdown("---")
-    col1, col2, col3 = st.columns(3, gap="medium")
+    col1, col2, col3, col4, col5 = st.columns(5, gap="medium")
     
     with col1:
         if st.button("🌤️ METEOROLOGÍA", key="nav_weather", width='stretch'):
@@ -261,6 +261,16 @@ def show_navigation_menu():
     with col3:
         if st.button("🔮 PREDICCIONES", key="nav_realtime", width='stretch'):
             st.session_state["page"] = "Predicciones"
+            st.rerun()
+
+    with col4:
+        if st.button("🔮 PREDICCIONES PV", key="nav_pred_pv", width='stretch'):
+            st.session_state["page"] = "Predicciones PV"
+            st.rerun()
+
+    with col5:
+        if st.button("☀️ ENTRENAR PV", key="nav_train_pv", width='stretch'):
+            st.session_state["page"] = "Entrenar PV"
             st.rerun()
     
     st.markdown("---")

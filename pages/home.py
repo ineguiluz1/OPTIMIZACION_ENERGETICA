@@ -16,7 +16,7 @@ def render():
 
     st.divider()
 
-    col1, col2, col3 = st.columns(3, gap="large")
+    col1, col2, col3, col4, col5 = st.columns(5, gap="large")
 
     with col1:
         if st.button("🌤️ METEOROLOGÍA", width='stretch'):
@@ -31,4 +31,14 @@ def render():
     with col3:
         if st.button("🔮 PREDICCIONES", width='stretch'):
             st.session_state["page"] = "Predicciones"
+            st.rerun()
+
+    with col4:
+        if st.button("🔮 PREDICCIONES PV", width='stretch'):
+            st.session_state["page"] = "Predicciones PV"
+            st.rerun()
+
+    with col5:
+        if st.button("☀️ ENTRENAR PV", width='stretch'):
+            st.session_state["page"] = "Entrenar PV"
             st.rerun()

@@ -216,6 +216,21 @@ class BuildingHeatLoadService:
             cart_model=self.cart_classifier,
             model_type="Cluster Changepoint Model (CART-Predicted Clustering)"
         )
+
+        # Load PV models (RF, GB, SVM)
+        pv_paths = {
+            "RandomForest": output_dir / "pv_rf_model.pkl",
+            "GradientBoost": output_dir / "pv_gb_model.pkl",
+            "SVM": output_dir / "pv_svm_model.pkl",
+        }
+        self.pv_models = {}
+        for name, path in pv_paths.items():
+            if path.exists():
+                try:
+                    self.pv_models[name] = joblib.load(path)
+                except Exception as e:
+                    print(f"Error loading PV model {name} from {path}: {e}")
+
     
     @bentoml.api
     def predict_tow(self, timestamp_week: int, temperature: float, solar_irradiation: float) -> dict:
@@ -268,6 +283,74 @@ class BuildingHeatLoadService:
             np.array(solar_irradiations)
         )
         return {"predictions": predictions.tolist()}
+
+    @bentoml.api
+    def predict_pv_rf(self, temperature: float, solar_irradiation: float) -> dict:
+        """
+        Predict PV production using Random Forest model.
+        
+        Args:
+            temperature: Temperature in °C
+            solar_irradiation: Solar irradiation in W/m²
+        
+        Returns:
+            dict with power_w and power_kw
+        """
+        rf_model = self.pv_models.get("RandomForest")
+        if rf_model is None:
+            return {"error": "PV RF model not loaded. Please upload 'output/pv_rf_model.pkl'"}
+            
+        features = np.array([[temperature, solar_irradiation]])
+        
+        try:
+            power_w = rf_model.predict(features)[0]
+            # Ensure non-negative
+            power_w = max(0.0, float(power_w))
+            return {"power_w": power_w, "power_kw": power_w / 1000.0}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @bentoml.api
+    def predict_batch_pv_rf(self, temperatures: list, solar_irradiations: list) -> dict:
+        """
+        Batch predict PV production using Random Forest.
+        """
+        rf_model = self.pv_models.get("RandomForest")
+        if rf_model is None:
+             return {"error": "PV RF model not loaded. Please upload 'output/pv_rf_model.pkl'"}
+
+        temps = np.array(temperatures)
+        irrads = np.array(solar_irradiations)
+        
+        # Stack features: N x 2 array
+        features = np.column_stack((temps, irrads))
+        
+        try:
+            predictions_w = rf_model.predict(features)
+            # Ensure non-negative
+            predictions_w = np.maximum(0.0, predictions_w)
+            return {"predictions": predictions_w.tolist()}
+        except Exception as e:
+             return {"error": str(e)}
+
+    @bentoml.api
+    def predict_batch_pv(self, model_name: str, temperatures: list, solar_irradiations: list) -> dict:
+        """
+        Batch predict PV production using the selected model (RF, GradientBoost o SVM).
+        """
+        if model_name not in self.pv_models or self.pv_models[model_name] is None:
+            return {"error": f"PV model '{model_name}' not loaded. Esperado: output/pv_*_model.pkl"}
+
+        temps = np.array(temperatures)
+        irrads = np.array(solar_irradiations)
+        features = np.column_stack((temps, irrads))
+
+        try:
+            predictions_w = self.pv_models[model_name].predict(features)
+            predictions_w = np.maximum(0.0, predictions_w)
+            return {"predictions": predictions_w.tolist()}
+        except Exception as e:
+            return {"error": str(e)}
     
     # Expose model info as properties
     @property
