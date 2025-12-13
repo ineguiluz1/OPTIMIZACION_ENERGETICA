@@ -217,17 +217,43 @@ class BuildingHeatLoadService:
             model_type="Cluster Changepoint Model (CART-Predicted Clustering)"
         )
 
-        # Load PV models (RF, GB, SVM)
+        # Load PV models (RF, GB, SVM) from models/ directory
+        models_dir = base_dir / "models"
         pv_paths = {
-            "RandomForest": output_dir / "pv_rf_model.pkl",
-            "GradientBoost": output_dir / "pv_gb_model.pkl",
-            "SVM": output_dir / "pv_svm_model.pkl",
+            "RandomForest": models_dir / "pv_rf_model.pkl",
+            "GradientBoost": models_dir / "pv_gb_model.pkl",
+            "SVM": models_dir / "pv_svm_model.pkl",
         }
         self.pv_models = {}
+        self.pv_features = {}  # Store feature names for each model
+
+        # 1. Load metadata from JSON
+        import json
+        metadata_path = models_dir / "pv_metadata.json"
+        
+        if metadata_path.exists():
+            try:
+                with open(metadata_path, 'r', encoding='utf-8') as f:
+                    self.pv_features = json.load(f)
+            except Exception as e:
+                print(f"Error loading PV metadata from JSON: {e}")
+        
+        # 2. Load models
         for name, path in pv_paths.items():
             if path.exists():
                 try:
-                    self.pv_models[name] = joblib.load(path)
+                    data = joblib.load(path)
+                    
+                    # Handle legacy/mixed formats just in case
+                    if isinstance(data, dict) and "model" in data:
+                        self.pv_models[name] = data["model"]
+                        # Only use embedded features if JSON didn't provide them
+                        if name not in self.pv_features:
+                            self.pv_features[name] = data.get("features", [])
+                    else:
+                        self.pv_models[name] = data
+                        # If not in JSON and not in dict, we assume empty list or fallback later
+                        
                 except Exception as e:
                     print(f"Error loading PV model {name} from {path}: {e}")
 
@@ -334,16 +360,35 @@ class BuildingHeatLoadService:
              return {"error": str(e)}
 
     @bentoml.api
-    def predict_batch_pv(self, model_name: str, temperatures: list, solar_irradiations: list) -> dict:
+    def get_pv_model_info(self, model_name: str) -> dict:
+        """Return information about the loaded model, including expected features."""
+        if model_name not in self.pv_models:
+            return {"error": "Model not found"}
+        
+        return {
+            "name": model_name,
+            "features": self.pv_features.get(model_name, [])
+        }
+
+    @bentoml.api
+    def predict_batch_pv(self, model_name: str, input_matrix: list) -> dict:
         """
-        Batch predict PV production using the selected model (RF, GradientBoost o SVM).
+        Batch predict PV production using the selected model.
+        
+        Args:
+            model_name: Name of the model (RandomForest, GradientBoost, SVM)
+            input_matrix: List of lists (N x F) where F is the number of features
         """
         if model_name not in self.pv_models or self.pv_models[model_name] is None:
             return {"error": f"PV model '{model_name}' not loaded. Esperado: output/pv_*_model.pkl"}
 
-        temps = np.array(temperatures)
-        irrads = np.array(solar_irradiations)
-        features = np.column_stack((temps, irrads))
+        # Convert to numpy array
+        features = np.array(input_matrix)
+        
+        # Verify dimensions if possible
+        expected_feats = self.pv_features.get(model_name, [])
+        if expected_feats and features.shape[1] != len(expected_feats):
+             return {"error": f"Dimension mismatch. Model expects {len(expected_feats)} features ({expected_feats}), got {features.shape[1]} columns."}
 
         try:
             predictions_w = self.pv_models[model_name].predict(features)

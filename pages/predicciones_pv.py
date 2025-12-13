@@ -18,7 +18,7 @@ def render():
         """
         <div style='background:#f8fafc;border:1px solid #e2e8f0;
         padding:16px;border-radius:10px;color:#2d3748;'>
-        Usa el servicio BentoML local (modelos en <code>output/</code>). Sube un CSV con
+        Usa el servicio BentoML local (modelos en <code>models/</code>). Sube un CSV con
         columnas de entrada para predecir potencia PV.
         </div>
         """,
@@ -96,7 +96,7 @@ def render():
         st.error("Se requieren al menos dos columnas numéricas (ej: temperatura e irradiación).")
         return
 
-    st.markdown("#### 🎯 Modelo y columnas")
+    st.markdown("#### 🎯 Seleccionar Modelo")
     model_choice = st.radio(
         "Modelo PV",
         ["RandomForest", "GradientBoost", "SVM"],
@@ -104,12 +104,32 @@ def render():
         key="pv_model_choice_infer",
     )
 
-    st.markdown("#### 📥 Columnas de entrada")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        temp_col = st.selectbox("Columna Temperatura (°C)", numeric_cols, key="pv_temp_col")
-    with col_b:
-        irrad_col = st.selectbox("Columna Irradiación (W/m²)", numeric_cols, key="pv_irrad_col")
+    # Obtener features requeridas por el modelo
+    model_info = service.get_pv_model_info(model_choice)
+    required_features = model_info.get("features", [])
+    
+    if "error" in model_info:
+        st.warning(f"⚠️ {model_info['error']}. Asegúrate de haber entrenado el modelo.")
+        return
+
+    if not required_features:
+        st.warning("⚠️ No se encontraron metadatos de variables para este modelo (formato antiguo). Se intentarán usar las primeras 2 numéricas.")
+        # Fallback logic
+        if len(numeric_cols) >= 2:
+             required_features = numeric_cols[:2]
+        else:
+             st.error("No hay suficientes columnas numéricas para el fallback.")
+             return
+    
+    # Verificar que el CSV tenga las columnas necesarias
+    missing_cols = [c for c in required_features if c not in df.columns]
+    
+    if missing_cols:
+        st.error(f"❌ El CSV no contiene las columnas necesarias para este modelo: {', '.join(missing_cols)}")
+        st.info(f"El modelo fue entrenado con: {', '.join(required_features)}")
+        return
+
+    st.success(f"✅ Columnas encontradas: **{', '.join(required_features)}**")
 
     time_col = st.selectbox(
         "Columna tiempo (opcional para gráfico)",
@@ -119,15 +139,19 @@ def render():
     )
 
     if st.button("🚀 Ejecutar predicción PV", type="primary", use_container_width=True):
-        temps = df[temp_col].to_numpy().tolist()
-        irrads = df[irrad_col].to_numpy().tolist()
+        # Preparar matriz de entrada usando las columnas específicas
+        try:
+            input_matrix = df[required_features].to_numpy().tolist()
+        except Exception as e:
+            st.error(f"Error preparando datos: {e}")
+            return
 
         with st.spinner("Prediciendo..."):
-            result = service.predict_batch_pv(model_choice, temps, irrads)
+            result = service.predict_batch_pv(model_choice, input_matrix)
 
         if isinstance(result, dict) and "error" in result:
             st.error(f"❌ Error del servicio: {result['error']}")
-            st.info("Verifica que exista el modelo en output/pv_rf_model.pkl.")
+            st.info("Verifica que exista el modelo en models/. Entrena un modelo en la pestaña 'Entrenamiento de Modelos PV'.")
             return
 
         preds = np.array(result.get("predictions", []))
@@ -171,7 +195,7 @@ def render():
                 st.warning("No se pudo graficar con la columna seleccionada.")
 
         st.markdown("#### 📋 Resultados")
-        st.dataframe(df_out[[temp_col, irrad_col, "pv_pred_w", "pv_pred_kw"]], height=300)
+        st.dataframe(df_out[required_features + ["pv_pred_w", "pv_pred_kw"]], height=300)
 
         csv_out = df_out.to_csv(index=False)
         try:

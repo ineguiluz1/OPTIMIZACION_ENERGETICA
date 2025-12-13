@@ -1,0 +1,17 @@
+{
+    "RandomForest": [
+        "temperature",
+        "precipitation",
+        "ApparentTemperature",
+        "CloudCover",
+        "radiation"
+    ],
+    "GradientBoost": [
+        "temperature",
+        "radiation"
+    ],
+    "SVM": [
+        "temperature",
+        "radiation"
+    ]
+}

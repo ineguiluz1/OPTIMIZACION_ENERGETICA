@@ -1,6 +1,8 @@
 import math
+import joblib
 import pandas as pd
 import streamlit as st
+from pathlib import Path
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
@@ -134,3 +136,46 @@ def render():
             )
             st.markdown("#### Importancia de variables")
             st.dataframe(importance)
+
+        # Guardar el modelo en el directorio models/
+        models_dir = Path(__file__).parent.parent / "models"
+        models_dir.mkdir(exist_ok=True)
+        
+        model_filename_map = {
+            "RandomForest": "pv_rf_model.pkl",
+            "SVM": "pv_svm_model.pkl",
+            "GradientBoost": "pv_gb_model.pkl",
+        }
+        
+        
+        import json
+
+        model_path = models_dir / model_filename_map[model_choice]
+        metadata_path = models_dir / "pv_metadata.json"
+        
+        # 1. Guardar el modelo (binario puro)
+        try:
+            joblib.dump(model, model_path)
+            st.success(f"✅ Modelo guardado en: `{model_path}`")
+        except Exception as e:
+            st.error(f"❌ Error al guardar el modelo: {e}")
+            return
+
+        # 2. Guardar/Actualizar metadatos en JSON
+        metadata = {}
+        if metadata_path.exists():
+            try:
+                with open(metadata_path, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+            except Exception:
+                metadata = {}
+        
+        metadata[model_choice] = feature_cols
+        
+        try:
+            with open(metadata_path, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, indent=4)
+            st.info(f"Metadatos actualizados en `{metadata_path}`")
+            st.info(f"Variables registradas: {', '.join(feature_cols)}")
+        except Exception as e:
+            st.warning(f"⚠️ No se pudo guardar el archivo de metadatos JSON: {e}")
