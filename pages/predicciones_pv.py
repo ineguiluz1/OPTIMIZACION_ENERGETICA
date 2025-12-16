@@ -69,7 +69,7 @@ def render():
 
     uploaded_csv = st.file_uploader("Dataset (CSV)", type="csv", key="pv_pred_csv")
     if not uploaded_csv:
-        st.info("Sube un CSV para predecir.")
+        st.info("Sube un CSV con: fecha/hora, temperatura y radiación solar.")
         return
 
     col_cfg1, col_cfg2 = st.columns(2)
@@ -89,11 +89,23 @@ def render():
         return
 
     st.success(f"✅ Dataset cargado: {df.shape[0]} filas, {df.shape[1]} columnas")
-    st.dataframe(df.head(8))
-
-    numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
-    if len(numeric_cols) < 2:
-        st.error("Se requieren al menos dos columnas numéricas (ej: temperatura e irradiación).")
+    
+    # Configurar columnas
+    st.markdown("#### 📅 Configuración de columnas")
+    all_cols = df.columns.tolist()
+    
+    col_cfg3, col_cfg4, col_cfg5 = st.columns(3)
+    with col_cfg3:
+        datetime_col = st.selectbox("Columna de fecha/hora", all_cols, key="datetime_col_pred")
+    with col_cfg4:
+        temp_col = st.selectbox("Columna de temperatura", all_cols, key="temp_col_pred")
+    with col_cfg5:
+        rad_col = st.selectbox("Columna de radiación solar", all_cols, key="rad_col_pred")
+    
+    # Verificar que las columnas sean diferentes
+    selected_cols = [datetime_col, temp_col, rad_col]
+    if len(set(selected_cols)) != 3:
+        st.error("❌ Debes seleccionar 3 columnas diferentes.")
         return
 
     st.markdown("#### 🎯 Seleccionar Modelo")
@@ -106,44 +118,66 @@ def render():
 
     # Obtener features requeridas por el modelo
     model_info = service.get_pv_model_info(model_choice)
-    required_features = model_info.get("features", [])
     
     if "error" in model_info:
         st.warning(f"⚠️ {model_info['error']}. Asegúrate de haber entrenado el modelo.")
         return
 
-    if not required_features:
-        st.warning("⚠️ No se encontraron metadatos de variables para este modelo (formato antiguo). Se intentarán usar las primeras 2 numéricas.")
-        # Fallback logic
-        if len(numeric_cols) >= 2:
-             required_features = numeric_cols[:2]
-        else:
-             st.error("No hay suficientes columnas numéricas para el fallback.")
-             return
-    
-    # Verificar que el CSV tenga las columnas necesarias
-    missing_cols = [c for c in required_features if c not in df.columns]
-    
-    if missing_cols:
-        st.error(f"❌ El CSV no contiene las columnas necesarias para este modelo: {', '.join(missing_cols)}")
-        st.info(f"El modelo fue entrenado con: {', '.join(required_features)}")
-        return
-
-    st.success(f"✅ Columnas encontradas: **{', '.join(required_features)}**")
-
-    time_col = st.selectbox(
-        "Columna tiempo (opcional para gráfico)",
-        options=["(ninguna)"] + df.columns.tolist(),
-        index=0,
-        key="pv_time_col",
-    )
-
     if st.button("🚀 Ejecutar predicción PV", type="primary", use_container_width=True):
-        # Preparar matriz de entrada usando las columnas específicas
         try:
-            input_matrix = df[required_features].to_numpy().tolist()
+            # Procesamiento de datos similar al entrenamiento
+            df_proc = df[[datetime_col, temp_col, rad_col]].copy()
+            df_proc['Datetime'] = pd.to_datetime(df_proc[datetime_col])
+            df_proc = df_proc.set_index('Datetime')
+            df_proc = df_proc.drop(columns=[datetime_col])
+            
+            # Renombrar columnas
+            df_proc = df_proc.rename(columns={
+                temp_col: 'temperature',
+                rad_col: 'radiation'
+            })
+            
+            # Resampleo diario
+            df_day = df_proc.resample('D').agg(
+                temperature=pd.NamedAgg(column='temperature', aggfunc='mean'),
+                radiation_sum=pd.NamedAgg(column='radiation', aggfunc='sum')
+            )
+            
+            df_day['temperature'] = df_day['temperature'].round(2)
+            df_day = df_day.sort_index()
+            df_day = df_day.dropna()
+            
+            # Ingeniería de características
+            df_day['dayofyear'] = df_day.index.dayofyear
+            df_day['month'] = df_day.index.month
+            
+            # Transformaciones cíclicas
+            df_day['month_sin'] = np.sin(2 * np.pi * df_day['month'] / 12)
+            df_day['month_cos'] = np.cos(2 * np.pi * df_day['month'] / 12)
+            df_day['dayofyear_sin'] = np.sin(2 * np.pi * df_day['dayofyear'] / 365)
+            df_day['dayofyear_cos'] = np.cos(2 * np.pi * df_day['dayofyear'] / 365)
+            
+            df_day = df_day.drop(columns=['month', 'dayofyear'])
+            
+            # Normalizar con el scaler guardado
+            from sklearn.preprocessing import StandardScaler
+            import joblib
+            from pathlib import Path
+            
+            scaler_path = Path(__file__).parent.parent / "models" / "pv_scaler.pkl"
+            if scaler_path.exists():
+                scaler = joblib.load(scaler_path)
+                df_day[['temperature', 'radiation_sum']] = scaler.transform(df_day[['temperature', 'radiation_sum']])
+            else:
+                st.warning("⚠️ Scaler no encontrado. Usando datos sin normalizar.")
+            
+            # Preparar matriz de entrada
+            input_matrix = df_day.to_numpy().tolist()
+            
         except Exception as e:
-            st.error(f"Error preparando datos: {e}")
+            st.error(f"❌ Error procesando datos: {e}")
+            import traceback
+            st.code(traceback.format_exc())
             return
 
         with st.spinner("Prediciendo..."):
@@ -160,44 +194,52 @@ def render():
             return
 
         preds = np.maximum(0.0, preds)
-        df_out = df.copy()
+        
+        # Crear DataFrame de salida con fechas diarias
+        df_out = df_day.copy()
         df_out["pv_pred_w"] = preds
         df_out["pv_pred_kw"] = preds / 1000
+        df_out = df_out.reset_index()  # Datetime como columna
 
-        st.success(f"✅ Predicciones generadas: {len(preds)} filas")
+        st.success(f"✅ Predicciones generadas: {len(preds)} días")
 
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        col_m1.metric("Media (W)", f"{preds.mean():,.1f}")
+        col_m1.metric("Media diaria (W)", f"{preds.mean():,.1f}")
         col_m2.metric("Desv. Est. (W)", f"{preds.std():,.1f}")
-        col_m3.metric("Mín (W)", f"{preds.min():,.1f}")
-        col_m4.metric("Máx (W)", f"{preds.max():,.1f}")
+        col_m3.metric("Mín diario (W)", f"{preds.min():,.1f}")
+        col_m4.metric("Máx diario (W)", f"{preds.max():,.1f}")
 
-        if time_col != "(ninguna)":
-            try:
-                df_out["datetime_pred"] = pd.to_datetime(df_out[time_col])
-                chart = (
-                    alt.Chart(df_out)
-                    .mark_line(color="#805AD5", strokeWidth=2)
-                    .encode(
-                        x=alt.X("datetime_pred:T", title="Tiempo"),
-                        y=alt.Y("pv_pred_w:Q", title="Potencia PV (W)"),
-                        tooltip=[
-                            alt.Tooltip("datetime_pred:T", title="Tiempo", format="%Y-%m-%d %H:%M"),
-                            alt.Tooltip("pv_pred_w:Q", title="Potencia (W)", format=",.1f"),
-                        ],
-                    )
-                    .properties(title="Potencia PV predicha", height=320)
+        # Gráfico de predicciones
+        try:
+            chart = (
+                alt.Chart(df_out)
+                .mark_line(color="#805AD5", strokeWidth=2)
+                .encode(
+                    x=alt.X("Datetime:T", title="Fecha"),
+                    y=alt.Y("pv_pred_w:Q", title="Generación PV Diaria (W)"),
+                    tooltip=[
+                        alt.Tooltip("Datetime:T", title="Fecha", format="%Y-%m-%d"),
+                        alt.Tooltip("pv_pred_w:Q", title="Potencia diaria (W)", format=",.1f"),
+                        alt.Tooltip("pv_pred_kw:Q", title="Potencia diaria (kW)", format=",.3f"),
+                    ],
+                )
+                .properties(title="Generación PV Diaria Predicha", height=320)
                     .configure(background="white")
                     .configure_view(strokeWidth=0, fill="white")
+                    .configure_title(color="#000000", fontSize=16, font='Poppins')
+                    .configure_axis(labelColor="#000000", titleColor="#000000", grid=False)
+                    .configure_legend(labelColor="#000000", titleColor="#000000")
+                    .configure_header(labelColor="#000000")
                 )
-                st.altair_chart(chart, use_container_width=True)
-            except Exception:
-                st.warning("No se pudo graficar con la columna seleccionada.")
+            st.altair_chart(chart, use_container_width=True)
+        except Exception as e:
+            st.warning(f"No se pudo graficar: {e}")
 
-        st.markdown("#### 📋 Resultados")
-        st.dataframe(df_out[required_features + ["pv_pred_w", "pv_pred_kw"]], height=300)
+        st.markdown("#### 📋 Resultados (agregados diarios)")
+        display_cols = ['Datetime', 'temperature', 'radiation_sum', 'pv_pred_w', 'pv_pred_kw']
+        st.dataframe(df_out[display_cols], height=300)
 
-        csv_out = df_out.to_csv(index=False)
+        csv_out = df_out[display_cols].to_csv(index=False)
         try:
             b64 = base64.b64encode(csv_out.encode()).decode()
             href = f"data:text/csv;base64,{b64}"

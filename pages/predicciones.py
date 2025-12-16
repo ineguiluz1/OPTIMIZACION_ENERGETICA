@@ -76,7 +76,7 @@ def render(data):
                 st.write(f"**Número de Modelos:** {service.tow_num_models}")
             else:
                 st.write(f"**Tipo:** {service.cluster_pred_model_type}")
-                st.write(f"**Número de Clusters:** {service.cluster_pred_num_clusters}")
+                st.write(f"**Número de Modelos:** {service.cluster_pred_num_clusters}")
         
         st.divider()
         
@@ -187,7 +187,7 @@ def render(data):
                             st.stop()
                     
                     # Botón de predicción
-                    if st.button("🚀 Ejecutar Predicción por Lotes", type="primary", width='stretch'):
+                    if st.button("🚀 Ejecutar Predicción por Lotes", type="primary", use_container_width=True):
                         try:
                             with st.spinner("Generando predicciones..."):
                                 if model_type == "Time-of-Week (ToW)":

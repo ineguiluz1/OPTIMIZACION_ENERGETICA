@@ -19,26 +19,26 @@ def render():
     col1, col2, col3, col4, col5 = st.columns(5, gap="large")
 
     with col1:
-        if st.button("🌤️ METEOROLOGÍA", width='stretch'):
+        if st.button("🌤️ METEOROLOGÍA", use_container_width=True):
             st.session_state["page"] = "Weather"
             st.rerun()
 
     with col2:
-        if st.button("📊 DATOS ENERGÉTICOS", width='stretch'):
+        if st.button("📊 DATOS ENERGÉTICOS", use_container_width=True):
             st.session_state["page"] = "Energético"
             st.rerun()
 
     with col3:
-        if st.button("🔮 PREDICCIONES", width='stretch'):
+        if st.button("🔮 PREDICCIONES", use_container_width=True):
             st.session_state["page"] = "Predicciones"
             st.rerun()
 
     with col4:
-        if st.button("🔮 PREDICCIONES PV", width='stretch'):
+        if st.button("🔮 PREDICCIONES PV", use_container_width=True):
             st.session_state["page"] = "Predicciones PV"
             st.rerun()
 
     with col5:
-        if st.button("☀️ ENTRENAR PV", width='stretch'):
+        if st.button("☀️ ENTRENAR PV", use_container_width=True):
             st.session_state["page"] = "Entrenar PV"
             st.rerun()
