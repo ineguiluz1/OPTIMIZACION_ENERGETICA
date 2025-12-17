@@ -14,6 +14,10 @@ def render(data):
     # Menú de navegación
     show_navigation_menu()
     
+    # Descripción principal
+    st.markdown("<p style='color: #000000; font-size: 16px;'>Visualización de los flujos energéticos del sistema, incluyendo consumo, generación fotovoltaica y gestión de baterías.</p>", unsafe_allow_html=True)
+    st.write("")
+    
     # Controles de filtrado
     col_filter1, col_filter2 = st.columns([1, 1])
     
@@ -47,6 +51,9 @@ def render(data):
     if filtered_data.empty:
         st.warning(f"No hay datos disponibles para la fecha seleccionada.")
     else:
+        st.markdown("<p style='color: #000000; font-size: 14px;'>Los siguientes diagramas de Sankey muestran el flujo de energía desde las fuentes hasta el consumo total, el sistema de calefacción y la distribución de la energía fotovoltaica generada.</p>", unsafe_allow_html=True)
+        st.write("")
+        
         sankey_fig = create_sankey_diagram(filtered_data)
         # Actualizar título del gráfico
         sankey_fig.update_layout(title_text=chart_title)
@@ -62,6 +69,7 @@ def render(data):
 
     # Nueva sección: Stacked Area Chart de Fuentes de Energía
     st.subheader("📊 Desglose de Fuentes de Energía")
+    st.markdown("<p style='color: #000000; font-size: 14px;'>Análisis detallado de las diferentes fuentes que contribuyen al suministro energético: consumo directo desde paneles solares, descarga de batería y suministro externo de la red.</p>", unsafe_allow_html=True)
     st.write("")
 
     # Controles de visualización para stacked area chart
@@ -213,6 +221,7 @@ def render(data):
     st.divider()
 
     st.subheader("📈 Evolución del Consumo (2024 - 2025)")
+    st.markdown("<p style='color: #000000; font-size: 14px;'>Seguimiento temporal del consumo energético total, batería y sistema de calefacción. Permite identificar patrones de consumo y picos de demanda.</p>", unsafe_allow_html=True)
     st.write("")
 
     # Controles de visualización para gráficos de consumo

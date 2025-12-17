@@ -284,7 +284,7 @@ def create_sankey_diagram_pv_distribution(df):
     
     fig.update_layout(
         title={
-            'text': "PV Power Generation Distribution",
+            'text': "Distribución de la Generación Fotovoltaica",
             'x': 0.5,
             'xanchor': 'center',
             'font': {'size': 24, 'color': '#000000', 'family': 'Poppins'}

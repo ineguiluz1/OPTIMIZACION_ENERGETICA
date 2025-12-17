@@ -13,40 +13,92 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
     # Menú de navegación
     show_navigation_menu()
     
+    # Descripción principal
+    st.markdown("<p style='color: #000000; font-size: 16px;'>Análisis de las variables meteorológicas que influyen en la generación fotovoltaica y el consumo energético del sistema.</p>", unsafe_allow_html=True)
+    st.write("")
+    
     # Sección de métricas
     st.markdown("### 📊 Resumen de Datos")
+    st.markdown("<p style='color: #000000; font-size: 14px;'>Valores extremos registrados para temperatura, precipitación, velocidad del viento y radiación solar durante el periodo de estudio.</p>", unsafe_allow_html=True)
+    
+    # Controles de filtrado para estadísticas
+    col_stats1, col_stats2 = st.columns([1, 2])
+    
+    with col_stats1:
+        stats_mode = st.radio(
+            "Periodo de estadísticas:",
+            ["Todo el periodo", "Rango específico"],
+            horizontal=True,
+            key="stats_mode"
+        )
+    
+    # Datos para calcular estadísticas
+    stats_data = data.copy()
+    
+    if stats_mode == "Rango específico":
+        with col_stats2:
+            min_date = data['Datetime'].min().date()
+            max_date = data['Datetime'].max().date()
+            
+            stats_date_range = st.date_input(
+                "Seleccionar rango:",
+                value=(min_date, min_date + pd.Timedelta(days=7)),
+                min_value=min_date,
+                max_value=max_date,
+                key="stats_date_range"
+            )
+        
+        # Filtrar datos según el rango seleccionado
+        if isinstance(stats_date_range, tuple) and len(stats_date_range) == 2:
+            stats_data = data[(data['Datetime'].dt.date >= stats_date_range[0]) & 
+                             (data['Datetime'].dt.date <= stats_date_range[1])]
+        else:
+            single_date = stats_date_range if not isinstance(stats_date_range, tuple) else stats_date_range[0]
+            stats_data = data[data['Datetime'].dt.date == single_date]
+    
+    # Calcular estadísticas sobre los datos filtrados o completos
+    temp_min_display = stats_data['temperature'].min()
+    temp_max_display = stats_data['temperature'].max()
+    prec_min_display = stats_data['precipitation'].loc[stats_data['precipitation'] != 0].min() if (stats_data['precipitation'] != 0).any() else 0
+    prec_max_display = stats_data['precipitation'].max()
+    wind_min_display = stats_data['WindSpeed'].loc[stats_data['WindSpeed'] != 0].min() if (stats_data['WindSpeed'] != 0).any() else 0
+    wind_max_display = stats_data['WindSpeed'].max()
+    radiation_min_display = stats_data['radiation'].loc[stats_data['radiation'] != 0].min() if (stats_data['radiation'] != 0).any() else 0
+    radiation_max_display = stats_data['radiation'].max()
+    
+    st.write("")
     
     # Temperatura
     with st.container():
         cols = st.columns(4, gap='medium')
         
         with cols[0]:
-            st.metric("🌡️ Temp. Máxima", f"{temp_max:.2f} °C")
+            st.metric("🌡️ Temp. Máxima", f"{temp_max_display:.2f} °C")
         
         with cols[1]:
-            st.metric("❄️ Temp. Mínima", f"{temp_min:.2f} °C")
+            st.metric("❄️ Temp. Mínima", f"{temp_min_display:.2f} °C")
         
         with cols[2]:
-            st.metric("💧 Precip. Máxima", f"{prec_max:.2f} mm/h")
+            st.metric("💧 Precip. Máxima", f"{prec_max_display:.2f} mm/h")
         
         with cols[3]:
-            st.metric("💧 Precip. Mínima", f"{prec_min:.2f} mm/h")
+            st.metric("💧 Precip. Mínima", f"{prec_min_display:.2f} mm/h")
 
     # Viento y Radiación
     with st.container():
         cols = st.columns(4, gap='medium')
         
         with cols[0]:
-            st.metric("💨 Viento Máx.", f"{wind_max:.2f} km/h")
+            st.metric("💨 Viento Máx.", f"{wind_max_display:.2f} km/h")
         
         with cols[1]:
-            st.metric("🍃 Viento Mín.", f"{wind_min:.2f} km/h")
+            st.metric("🍃 Viento Mín.", f"{wind_min_display:.2f} km/h")
         
         with cols[2]:
-            st.metric("☀️ Radiación Máx.", f"{radiation_max:.2f} W/m²")
+            st.metric("☀️ Radiación Máx.", f"{radiation_max_display:.2f} W/m²")
         
         with cols[3]:
-            st.metric("🌤️ Radiación Mín.", f"{radiation_min:.2f} W/m²")
+            st.metric("🌤️ Radiación Mín.", f"{radiation_min_display:.2f} W/m²")
 
     st.divider()
 
@@ -69,6 +121,7 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
 
     # Gráficos de Temperatura y Precipitación
     st.markdown("### 📈 Temperatura y Precipitación (2024 - 2025)")
+    st.markdown("<p style='color: #000000; font-size: 14px;'>Evolución temporal de la temperatura ambiente y precipitación. Estas variables afectan directamente el rendimiento de los paneles solares y las necesidades de calefacción.</p>", unsafe_allow_html=True)
     st.write("")
     
     # Controles de visualización para gráficos de meteorología
@@ -287,8 +340,11 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
             
             st.altair_chart(chart_prec, width='stretch')
 
-        st.divider()        # Gráfico de Radiación (solo para Semanal/Diario)
+        st.divider()
+        
+        # Gráfico de Radiación (solo para Semanal/Diario)
         st.markdown("### ☀️ Radiación (2024 - 2025)")
+        st.markdown("<p style='color: #000000; font-size: 14px;'>Radiación solar incidente, principal factor determinante de la generación fotovoltaica. Medida en vatios por metro cuadrado (W/m²).</p>", unsafe_allow_html=True)
         st.write("")
         
         if weather_view_mode == "Semanal":
@@ -339,6 +395,7 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
         # Gráfico de Radiación para Periodo Específico (Plotly)
         st.divider()
         st.markdown("### ☀️ Radiación (2024 - 2025)")
+        st.markdown("<p style='color: #000000; font-size: 14px;'>Radiación solar incidente, principal factor determinante de la generación fotovoltaica. Medida en vatios por metro cuadrado (W/m²).</p>", unsafe_allow_html=True)
         st.write("")
         
         rad_data_full = data_copy[['Datetime', 'radiation']].copy()
@@ -376,6 +433,8 @@ def render(data, temp_min, temp_max, prec_min, prec_max, wind_min, wind_max, rad
 
     # Gráfico Combinado de Variables Meteorológicas
     st.markdown("### 🌍 Vista Combinada - Variables Meteorológicas")
+    st.markdown("<p style='color: #000000; font-size: 14px;'>Comparación simultánea de temperatura, precipitación y radiación para identificar correlaciones y patrones climáticos que impactan en el sistema energético.</p>", unsafe_allow_html=True)
+    st.write("")
     
     # Selector de rango de fechas (solo para zoom inicial)
     col_combined1, col_combined2 = st.columns([1, 2])
