@@ -423,6 +423,215 @@ def render(data):
 
     st.divider()
 
+    # Nueva sección: Boxplots de Consumo por Mes
+    st.subheader("📦 Distribución de Consumo por Mes")
+    st.markdown("<p style='color: #000000; font-size: 14px;'>Análisis de la variación del consumo total y del sistema de calefacción a lo largo de los meses. Los boxplots muestran la mediana, cuartiles y valores atípicos.</p>", unsafe_allow_html=True)
+    st.write("")
+    
+    # Preparar datos para boxplots
+    boxplot_data = data.copy()
+    boxplot_data['Mes'] = boxplot_data['Datetime'].dt.month
+    boxplot_data['Año-Mes'] = boxplot_data['Datetime'].dt.to_period('M')
+    boxplot_data['Mes_Nombre'] = boxplot_data['Mes'].map({
+        1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr', 5: 'May', 6: 'Jun',
+        7: 'Jul', 8: 'Ago', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'
+    })
+    
+    # Convertir a kW para mejor visualización
+    boxplot_data['Consumo Total (kW)'] = boxplot_data['TotalConsumption(W)'] / 1000
+    boxplot_data['Calefacción (kW)'] = boxplot_data['HeatingSystem(W)'] / 1000
+    
+    # Calcular radiación acumulada diaria por mes (kWh/m²)
+    boxplot_data['Radiación (Wh/m²)'] = boxplot_data['radiation'] * 0.25  # 15 min = 0.25 horas
+    radiation_daily = boxplot_data.groupby([boxplot_data['Datetime'].dt.date, 'Mes'])['Radiación (Wh/m²)'].sum().reset_index()
+    radiation_daily.columns = ['Fecha', 'Mes', 'Radiación Diaria (Wh/m²)']
+    radiation_daily['Radiación Diaria (kWh/m²)'] = radiation_daily['Radiación Diaria (Wh/m²)'] / 1000
+    
+    # Crear boxplots con Plotly
+    cols_box = st.columns(3, gap='medium')
+    
+    with cols_box[0]:
+        fig_box_total = go.Figure()
+        
+        # Obtener meses disponibles ordenados
+        available_months = sorted(boxplot_data['Mes'].unique())
+        month_names_full = {1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr', 5: 'May', 6: 'Jun',
+                           7: 'Jul', 8: 'Ago', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'}
+        
+        for mes in available_months:
+            month_data = boxplot_data[boxplot_data['Mes'] == mes]['Consumo Total (kW)']
+            fig_box_total.add_trace(go.Box(
+                y=month_data,
+                name=month_names_full[mes],
+                marker_color='#805AD5',
+                boxmean='sd',
+                showlegend=False
+            ))
+        
+        fig_box_total.update_layout(
+            title={
+                'text': 'Consumo Total por Mes',
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 18, 'color': '#2d3748'}
+            },
+            xaxis=dict(
+                title=dict(text='Mes', font=dict(color='#2d3748')),
+                tickfont=dict(color='#2d3748')
+            ),
+            yaxis=dict(
+                title=dict(text='Consumo (kW)', font=dict(color='#2d3748')),
+                gridcolor='rgba(200,200,200,0.3)',
+                tickfont=dict(color='#2d3748')
+            ),
+            height=450,
+            plot_bgcolor='white',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=60, r=20, t=60, b=60)
+        )
+        
+        st.plotly_chart(fig_box_total, width='stretch')
+    
+    with cols_box[1]:
+        fig_box_heating = go.Figure()
+        
+        for mes in available_months:
+            month_data = boxplot_data[boxplot_data['Mes'] == mes]['Calefacción (kW)']
+            fig_box_heating.add_trace(go.Box(
+                y=month_data,
+                name=month_names_full[mes],
+                marker_color='#38A169',
+                boxmean='sd',
+                showlegend=False
+            ))
+        
+        fig_box_heating.update_layout(
+            title={
+                'text': 'Consumo de Calefacción por Mes',
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 18, 'color': '#2d3748'}
+            },
+            xaxis=dict(
+                title=dict(text='Mes', font=dict(color='#2d3748')),
+                tickfont=dict(color='#2d3748')
+            ),
+            yaxis=dict(
+                title=dict(text='Consumo (kW)', font=dict(color='#2d3748')),
+                gridcolor='rgba(200,200,200,0.3)',
+                tickfont=dict(color='#2d3748')
+            ),
+            height=450,
+            plot_bgcolor='white',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=60, r=20, t=60, b=60)
+        )
+        
+        st.plotly_chart(fig_box_heating, width='stretch')
+    
+    with cols_box[2]:
+        fig_box_radiation = go.Figure()
+        
+        for mes in available_months:
+            month_rad_data = radiation_daily[radiation_daily['Mes'] == mes]['Radiación Diaria (kWh/m²)']
+            fig_box_radiation.add_trace(go.Box(
+                y=month_rad_data,
+                name=month_names_full[mes],
+                marker_color='#F97316',
+                boxmean='sd',
+                showlegend=False
+            ))
+        
+        fig_box_radiation.update_layout(
+            title={
+                'text': 'Radiación Solar Acumulada Diaria',
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 18, 'color': '#2d3748'}
+            },
+            xaxis=dict(
+                title=dict(text='Mes', font=dict(color='#2d3748')),
+                tickfont=dict(color='#2d3748')
+            ),
+            yaxis=dict(
+                title=dict(text='Radiación (kWh/m²/día)', font=dict(color='#2d3748')),
+                gridcolor='rgba(200,200,200,0.3)',
+                tickfont=dict(color='#2d3748')
+            ),
+            height=450,
+            plot_bgcolor='white',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=60, r=20, t=60, b=60)
+        )
+        
+        st.plotly_chart(fig_box_radiation, width='stretch')
+
+    st.divider()
+
+    # Nueva sección: Matriz de Correlación
+    st.subheader("🔢 Matriz de Correlación entre Variables")
+    st.markdown("<p style='color: #000000; font-size: 14px;'>Análisis de correlación entre variables meteorológicas y de consumo. Valores cercanos a 1 o -1 indican fuerte correlación positiva o negativa.</p>", unsafe_allow_html=True)
+    st.write("")
+    
+    # Preparar datos para correlación
+    corr_data = data[['temperature', 'precipitation', 'WindSpeed', 'radiation', 
+                       'PV_PowerGeneration(W)', 'TotalConsumption(W)', 
+                       'HeatingSystem(W)', 'BatteryCharging(W)', 
+                       'BatteryDischarging(W)']].copy()
+    
+    # Renombrar columnas para mejor visualización
+    corr_data.columns = ['Temperatura', 'Precipitación', 'Viento', 'Radiación', 
+                         'Gen. PV', 'Consumo Total', 'Calefacción', 
+                         'Carga Batería', 'Descarga Batería']
+    
+    # Calcular matriz de correlación
+    correlation_matrix = corr_data.corr()
+    
+    # Crear heatmap con Plotly
+    fig_corr = go.Figure(data=go.Heatmap(
+        z=correlation_matrix.values,
+        x=correlation_matrix.columns,
+        y=correlation_matrix.columns,
+        colorscale='RdBu',
+        zmid=0,
+        zmin=-1,
+        zmax=1,
+        text=correlation_matrix.values.round(2),
+        texttemplate='%{text}',
+        textfont={"size": 11, "color": "black"},
+        colorbar=dict(
+            title=dict(text="Correlación", side="right"),
+            tickmode="linear",
+            tick0=-1,
+            dtick=0.5
+        )
+    ))
+    
+    fig_corr.update_layout(
+        title={
+            'text': 'Matriz de Correlación de Variables',
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 20, 'color': '#2d3748'}
+        },
+        xaxis=dict(
+            tickfont=dict(color='#2d3748', size=11),
+            side='bottom'
+        ),
+        yaxis=dict(
+            tickfont=dict(color='#2d3748', size=11),
+            autorange='reversed'
+        ),
+        height=600,
+        plot_bgcolor='white',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=150, r=150, t=80, b=150)
+    )
+    
+    st.plotly_chart(fig_corr, width='stretch')
+
+    st.divider()
+
     # Nueva sección: Scatter Plots de Correlación
     st.subheader("🔗 Correlación Consumo vs Variables Meteorológicas")
     st.write("")
