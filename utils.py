@@ -226,7 +226,65 @@ def create_sankey_diagram_heating_system(df):
     
     fig.update_layout(
         title={
-            'text': "Heating System Energy Sources Flow",
+            'text': "Flujo de Energía - Sistema de Calefacción",
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 24, 'color': '#000000', 'family': 'Poppins'}
+        },
+        font=dict(size=14, family="Inter", color='#000000'),
+        height=600,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=20, r=20, t=80, b=20)
+    )
+    
+    fig.update_traces(textfont=dict(color='black', size=14, family='Inter'))
+    
+    return fig
+
+
+def create_sankey_diagram_pv_distribution(df):
+    """Crea un diagrama Sankey mostrando la distribución de la generación fotovoltaica"""
+    
+    # Calcular totales en kW
+    total_direct_consumption = df['DirectConsumption(W)'].sum() / 1000
+    total_battery_charging = df['BatteryCharging(W)'].sum() / 1000
+    total_grid_feedin = df['GridFeedIn(W)'].sum() / 1000
+    
+    # Calcular el total generado
+    total_pv_generation = total_direct_consumption + total_battery_charging + total_grid_feedin
+    
+    # Crear Sankey
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=15,
+            thickness=20,
+            line=dict(color='#cbd5e0', width=2),
+            label=[
+                "PV Power\nGeneration",
+                "Direct\nConsumption",
+                "Battery\nCharging",
+                "Grid\nFeed-In"
+            ],
+            color=["#FFD700", "#FF6347", "#1E90FF", "#32CD32"],
+            x=[0.1, 0.9, 0.9, 0.9],
+            y=[0.5, 0.1, 0.5, 0.9]
+        ),
+        link=dict(
+            source=[0, 0, 0],
+            target=[1, 2, 3],
+            value=[total_direct_consumption, total_battery_charging, total_grid_feedin],
+            color=[
+                "rgba(255,99,71,0.4)",    # rojo (consumo directo)
+                "rgba(30,144,255,0.4)",   # azul (carga batería)
+                "rgba(50,205,50,0.4)"     # verde (inyección red)
+            ]
+        )
+    )])
+    
+    fig.update_layout(
+        title={
+            'text': "PV Power Generation Distribution",
             'x': 0.5,
             'xanchor': 'center',
             'font': {'size': 24, 'color': '#000000', 'family': 'Poppins'}

@@ -55,6 +55,8 @@ def render(data):
         sankey_heating_fig = create_sankey_diagram_heating_system(filtered_data)
         st.plotly_chart(sankey_heating_fig, width='stretch')
         
+        sankey_pv_fig = create_sankey_diagram_pv_distribution(filtered_data)
+        st.plotly_chart(sankey_pv_fig, width='stretch')
 
     st.divider()
 
