@@ -11,7 +11,7 @@ from utils import show_navigation_menu
 
 def render():
     """Pestaña para predicciones PV usando el servicio BentoML local."""
-    st.title("🔮 Predicciones PV")
+    st.title("🧙‍♂️ Predicciones PV")
     show_navigation_menu()
 
     st.markdown(
@@ -123,7 +123,7 @@ def render():
         st.warning(f"⚠️ {model_info['error']}. Asegúrate de haber entrenado el modelo.")
         return
 
-    if st.button("🚀 Ejecutar predicción PV", type="primary", use_container_width=True):
+    if st.button("🚀 Ejecutar predicción PV", type="primary", width='stretch'):
         try:
             # Procesamiento de datos similar al entrenamiento
             df_proc = df[[datetime_col, temp_col, rad_col]].copy()
@@ -231,7 +231,7 @@ def render():
                     .configure_legend(labelColor="#000000", titleColor="#000000")
                     .configure_header(labelColor="#000000")
                 )
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart, width='stretch')
         except Exception as e:
             st.warning(f"No se pudo graficar: {e}")
 

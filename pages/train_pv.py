@@ -1,5 +1,6 @@
 import math
 import joblib
+import json
 import pandas as pd
 import numpy as np
 import streamlit as st
@@ -10,6 +11,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVR
 from sklearn.preprocessing import StandardScaler
+from datetime import datetime
+import plotly.graph_objects as go
 
 from utils import show_navigation_menu
 
@@ -200,7 +203,7 @@ def render():
             elasticnet_l1_ratio = st.slider("L1 ratio", 0.0, 1.0, 0.5, step=0.01)
         st.info("ElasticNet combina regularización L1 y L2")
 
-    if st.button("Entrenar modelo", type="primary", use_container_width=True):
+    if st.button("Entrenar modelo", type="primary", width='stretch'):
         # Train/test split
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=test_size, random_state=42
@@ -235,6 +238,9 @@ def render():
         col_m1.metric("MAE", f"{mae:,.3f}")
         col_m2.metric("RMSE", f"{rmse:,.3f}")
         col_m3.metric("R²", f"{r2:,.3f}")
+        
+        # Guardar timestamp del entrenamiento
+        training_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if hasattr(model, "feature_importances_"):
             importance = (
@@ -259,8 +265,6 @@ def render():
             "Lasso": "pv_lasso_model.pkl",
             "ElasticNet": "pv_elasticnet_model.pkl",
         }
-        
-        import json
 
         model_path = models_dir / model_filename_map[model_choice]
         scaler_path = models_dir / "pv_scaler.pkl"
@@ -295,7 +299,13 @@ def render():
             'features': feature_cols,
             'scaler_params': scaler_data,
             'training_samples': X_train.shape[0],
-            'test_samples': X_test.shape[0]
+            'test_samples': X_test.shape[0],
+            'metrics': {
+                'mae': float(mae),
+                'rmse': float(rmse),
+                'r2': float(r2)
+            },
+            'timestamp': training_timestamp
         }
         
         try:
@@ -306,3 +316,238 @@ def render():
             st.info(f"📈 Variables normalizadas: temperature, radiation_sum")
         except Exception as e:
             st.warning(f"⚠️ No se pudo guardar el archivo de metadatos JSON: {e}")
+    
+    # Sección de visualización de métricas históricas
+    st.divider()
+    st.markdown("#### 📊 Comparación de Modelos Entrenados")
+    
+    models_dir = Path(__file__).parent.parent / "models"
+    metadata_path = models_dir / "pv_metadata.json"
+    
+    if metadata_path.exists():
+        try:
+            with open(metadata_path, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            
+            # Filtrar modelos que tienen métricas
+            models_with_metrics = {k: v for k, v in metadata.items() if 'metrics' in v}
+            
+            if models_with_metrics:
+                # Crear DataFrame con las métricas
+                metrics_data = []
+                for model_name, model_info in models_with_metrics.items():
+                    metrics_data.append({
+                        'Modelo': model_name,
+                        'MAE': model_info['metrics']['mae'],
+                        'RMSE': model_info['metrics']['rmse'],
+                        'R²': model_info['metrics']['r2'],
+                        'Timestamp': model_info.get('timestamp', 'N/A'),
+                        'Muestras Train': model_info.get('training_samples', 'N/A'),
+                        'Muestras Test': model_info.get('test_samples', 'N/A')
+                    })
+                
+                metrics_df = pd.DataFrame(metrics_data)
+                
+                # Mostrar tabla de métricas
+                st.markdown("##### 📋 Tabla de Métricas")
+                st.dataframe(
+                    metrics_df.style.format({
+                        'MAE': '{:.3f}',
+                        'RMSE': '{:.3f}',
+                        'R²': '{:.3f}'
+                    }).background_gradient(subset=['R²'], cmap='RdYlGn', vmin=0, vmax=1),
+                    width='stretch'
+                )
+                
+                # Gráficos de comparación
+                st.markdown("##### 📈 Gráficos Comparativos")
+                
+                # Crear gráfico de barras para MAE y RMSE
+                col_chart1, col_chart2 = st.columns(2)
+                
+                with col_chart1:
+                    fig_mae_rmse = go.Figure()
+                    
+                    fig_mae_rmse.add_trace(go.Bar(
+                        name='MAE',
+                        x=metrics_df['Modelo'],
+                        y=metrics_df['MAE'],
+                        marker_color='#3B82F6',
+                        text=metrics_df['MAE'].round(2),
+                        textposition='outside',
+                        textfont=dict(size=11, color='#000000')
+                    ))
+                    
+                    fig_mae_rmse.add_trace(go.Bar(
+                        name='RMSE',
+                        x=metrics_df['Modelo'],
+                        y=metrics_df['RMSE'],
+                        marker_color='#EF4444',
+                        text=metrics_df['RMSE'].round(2),
+                        textposition='outside',
+                        textfont=dict(size=11, color='#000000')
+                    ))
+                    
+                    fig_mae_rmse.update_layout(
+                        title={
+                            'text': 'MAE y RMSE por Modelo',
+                            'x': 0.5,
+                            'xanchor': 'center',
+                            'font': {'size': 16, 'color': '#000000'}
+                        },
+                        xaxis=dict(
+                            title=dict(text='Modelo', font=dict(color='#000000')),
+                            tickfont=dict(color='#000000', size=10),
+                            tickangle=-45
+                        ),
+                        yaxis=dict(
+                            title=dict(text='Valor del Error', font=dict(color='#000000')),
+                            tickfont=dict(color='#000000'),
+                            gridcolor='rgba(200,200,200,0.3)'
+                        ),
+                        barmode='group',
+                        height=400,
+                        plot_bgcolor='white',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        legend=dict(
+                            orientation='h',
+                            yanchor='bottom',
+                            y=1.02,
+                            xanchor='center',
+                            x=0.5,
+                            font=dict(color='#000000')
+                        ),
+                        margin=dict(l=60, r=20, t=80, b=100)
+                    )
+                    
+                    st.plotly_chart(fig_mae_rmse, width='stretch')
+                
+                with col_chart2:
+                    fig_r2 = go.Figure()
+                    
+                    # Colores según el R² (verde si > 0.8, amarillo si > 0.6, rojo si < 0.6)
+                    colors = ['#10B981' if r2 > 0.8 else '#F59E0B' if r2 > 0.6 else '#EF4444' 
+                              for r2 in metrics_df['R²']]
+                    
+                    fig_r2.add_trace(go.Bar(
+                        x=metrics_df['Modelo'],
+                        y=metrics_df['R²'],
+                        marker_color=colors,
+                        text=metrics_df['R²'].round(3),
+                        textposition='outside',
+                        textfont=dict(size=11, color='#000000'),
+                        showlegend=False
+                    ))
+                    
+                    fig_r2.update_layout(
+                        title={
+                            'text': 'Coeficiente R² por Modelo',
+                            'x': 0.5,
+                            'xanchor': 'center',
+                            'font': {'size': 16, 'color': '#000000'}
+                        },
+                        xaxis=dict(
+                            title=dict(text='Modelo', font=dict(color='#000000')),
+                            tickfont=dict(color='#000000', size=10),
+                            tickangle=-45
+                        ),
+                        yaxis=dict(
+                            title=dict(text='R² Score', font=dict(color='#000000')),
+                            tickfont=dict(color='#000000'),
+                            gridcolor='rgba(200,200,200,0.3)',
+                            range=[0, 1]
+                        ),
+                        height=400,
+                        plot_bgcolor='white',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        margin=dict(l=60, r=20, t=80, b=100)
+                    )
+                    
+                    # Añadir línea de referencia en 0.8
+                    fig_r2.add_hline(
+                        y=0.8,
+                        line_dash='dash',
+                        line_color='#10B981',
+                        annotation_text='Objetivo (0.8)',
+                        annotation_position='right',
+                        annotation=dict(font=dict(color='#000000'))
+                    )
+                    
+                    st.plotly_chart(fig_r2, width='stretch')
+                
+                # Gráfico radar/spider para comparación multidimensional
+                st.markdown("##### 🕸️ Comparación Multidimensional")
+                
+                # Normalizar métricas para el gráfico radar (invertir MAE y RMSE)
+                metrics_df_norm = metrics_df.copy()
+                
+                # Para el radar, queremos que valores más altos sean mejores
+                # Normalizamos MAE y RMSE de forma inversa (1 - valor_normalizado)
+                if metrics_df_norm['MAE'].max() > 0:
+                    metrics_df_norm['MAE_norm'] = 1 - (metrics_df_norm['MAE'] / metrics_df_norm['MAE'].max())
+                else:
+                    metrics_df_norm['MAE_norm'] = 1
+                    
+                if metrics_df_norm['RMSE'].max() > 0:
+                    metrics_df_norm['RMSE_norm'] = 1 - (metrics_df_norm['RMSE'] / metrics_df_norm['RMSE'].max())
+                else:
+                    metrics_df_norm['RMSE_norm'] = 1
+                
+                # R² ya está en [0, 1] y valores más altos son mejores
+                metrics_df_norm['R2_norm'] = metrics_df_norm['R²']
+                
+                fig_radar = go.Figure()
+                
+                colors_radar = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
+                
+                for idx, row in metrics_df_norm.iterrows():
+                    fig_radar.add_trace(go.Scatterpolar(
+                        r=[row['MAE_norm'], row['RMSE_norm'], row['R2_norm']],
+                        theta=['MAE (inv)', 'RMSE (inv)', 'R²'],
+                        fill='toself',
+                        name=row['Modelo'],
+                        line_color=colors_radar[idx % len(colors_radar)],
+                        opacity=0.6
+                    ))
+                
+                fig_radar.update_layout(
+                    polar=dict(
+                        radialaxis=dict(
+                            visible=True,
+                            range=[0, 1],
+                            tickfont=dict(color='#000000')
+                        ),
+                        angularaxis=dict(
+                            tickfont=dict(color='#000000', size=12)
+                        )
+                    ),
+                    title={
+                        'text': 'Comparación Normalizada de Métricas',
+                        'x': 0.5,
+                        'xanchor': 'center',
+                        'font': {'size': 16, 'color': '#000000'}
+                    },
+                    showlegend=True,
+                    legend=dict(
+                        orientation='h',
+                        yanchor='bottom',
+                        y=-0.2,
+                        xanchor='center',
+                        x=0.5,
+                        font=dict(color='#000000')
+                    ),
+                    height=500,
+                    paper_bgcolor='rgba(0,0,0,0)'
+                )
+                
+                st.plotly_chart(fig_radar, width='stretch')
+                
+                st.info("💡 **Nota:** En el gráfico radar, valores más cercanos al borde exterior indican mejor rendimiento. MAE y RMSE se muestran invertidos (mejor = más cerca del borde).")
+                
+            else:
+                st.info("No hay modelos con métricas guardadas. Entrena un modelo para ver las comparaciones.")
+        
+        except Exception as e:
+            st.warning(f"⚠️ No se pudo cargar el historial de métricas: {e}")
+    else:
+        st.info("No hay historial de entrenamiento disponible. Entrena un modelo para comenzar.")

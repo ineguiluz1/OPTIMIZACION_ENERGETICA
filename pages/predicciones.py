@@ -187,7 +187,7 @@ def render(data):
                             st.stop()
                     
                     # Botón de predicción
-                    if st.button("🚀 Ejecutar Predicción por Lotes", type="primary", use_container_width=True):
+                    if st.button("🚀 Ejecutar Predicción por Lotes", type="primary", width='stretch'):
                         try:
                             with st.spinner("Generando predicciones..."):
                                 if model_type == "Time-of-Week (ToW)":
