@@ -8,7 +8,7 @@ Este dashboard proporciona una plataforma completa para monitorizar y analizar e
 
 - **Visualización de datos meteorológicos** en tiempo real
 - **Análisis de flujos energéticos** (producción, consumo, almacenamiento)
-- **Predicciones de carga térmica** mediante modelos de Machine Learning
+- **Predicciones de carga del sistema de calefacción** mediante modelos de Machine Learning
 - **Entrenamiento de modelos fotovoltaicos** para optimizar la producción solar
 - **Predicciones de generación fotovoltaica** basadas en condiciones meteorológicas
 
