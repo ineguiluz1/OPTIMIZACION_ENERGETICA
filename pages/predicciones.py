@@ -23,7 +23,7 @@ def render(data):
                 padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px;'>
         <p style='color: #4a5568; margin: 0; font-size: 15px;'>
             Este módulo utiliza modelos de predicción basados en <b>Changepoint</b> para estimar la carga térmica 
-            del edificio. Sube un archivo CSV para realizar predicciones en lote.
+            del edificio. Sube un archivo CSV para realizar predicciones en batches.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -80,8 +80,8 @@ def render(data):
         
         st.divider()
         
-        # PREDICCIÓN POR LOTES (CSV)
-        st.markdown("### 📊 Predicción por Lotes")
+        # PREDICCIÓN POR BATCHES (CSV)
+        st.markdown("### 📊 Predicción por Batches")
         
         st.markdown("""
         <div style='background: white; color: #000; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 10px;'>
@@ -187,7 +187,7 @@ def render(data):
                             st.stop()
                     
                     # Botón de predicción
-                    if st.button("🚀 Ejecutar Predicción por Lotes", type="primary", width='stretch'):
+                    if st.button("🚀 Ejecutar Predicción por Batches", type="primary", width='stretch'):
                         try:
                             with st.spinner("Generando predicciones..."):
                                 if model_type == "Time-of-Week (ToW)":

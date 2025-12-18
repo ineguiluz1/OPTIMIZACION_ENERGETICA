@@ -143,7 +143,7 @@ Módulo de predicción basado en modelos de Machine Learning para estimar la dem
 
 **Características:**
 - **Modelo Changepoint**: Detecta cambios en el comportamiento térmico
-- **Predicción por lotes**: Carga archivos CSV para múltiples predicciones
+- **Predicción por batches**: Carga archivos CSV para múltiples predicciones
 - **Servicio BentoML**: API de predicción lista para producción
 - **Visualización de resultados**: Gráficos comparativos de predicciones
 
