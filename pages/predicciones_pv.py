@@ -112,7 +112,7 @@ def render():
     st.markdown("#### 🎯 Seleccionar Modelo")
     model_choice = st.radio(
         "Modelo PV",
-        ["RandomForest", "GradientBoost", "SVM"],
+        ["RandomForest", "GradientBoost", "SVM","Ridge","Lasso","ElasticNet"],
         horizontal=True,
         key="pv_model_choice_infer",
     )

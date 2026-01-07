@@ -223,6 +223,9 @@ class BuildingHeatLoadService:
             "RandomForest": models_dir / "pv_rf_model.pkl",
             "GradientBoost": models_dir / "pv_gb_model.pkl",
             "SVM": models_dir / "pv_svm_model.pkl",
+            "Ridge": models_dir / "pv_ridge_model.pkl",
+            "Lasso": models_dir / "pv_lasso_model.pkl",
+            "ElasticNet": models_dir / "pv_elasticnet_model.pkl",
         }
         self.pv_models = {}
         self.pv_features = {}  # Store feature names for each model
