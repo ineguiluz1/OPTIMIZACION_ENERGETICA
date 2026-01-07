@@ -29,6 +29,7 @@ def render():
     @st.cache_resource
     def get_prediction_service():
         """Carga el servicio BentoML desde service.py"""
+        from pathlib import Path
         try:
             possible_paths = [
                 Path(__file__).parent.parent / "service.py",
