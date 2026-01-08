@@ -208,7 +208,16 @@ def render(data):
                                             row['Solar Irradiation']
                                         )
                                         predictions.append(result["power_kw"])
-                                        cluster_predictions.append(result["cluster_hour"])
+                                        
+                                        # Extraer el cluster real del código cluster_hour
+                                        cluster_hour_code = result["cluster_hour"]
+                                        if cluster_hour_code >= 200:
+                                            cluster_label = 2
+                                        elif cluster_hour_code >= 100:
+                                            cluster_label = 1
+                                        else:
+                                            cluster_label = 0
+                                        cluster_predictions.append(cluster_label)
                                     
                                     predictions = np.array(predictions)
                                     df_batch['predicted_cluster'] = cluster_predictions
@@ -397,9 +406,13 @@ def render(data):
                                 
                                 # Distribución de clusters (si aplica)
                                 if model_type == "Cluster-PRED (CART)" and 'predicted_cluster' in df_batch.columns:
-                                    st.markdown("#### 🎯 Distribución de Clusters")
+                                    st.markdown("#### 🎯 Distribución de Clusters (por día)")
                                     
-                                    cluster_counts = df_batch['predicted_cluster'].value_counts().reset_index()
+                                    # Agrupar por día y tomar el cluster más frecuente de cada día
+                                    df_batch['date'] = df_batch['datetime'].dt.date
+                                    daily_clusters = df_batch.groupby('date')['predicted_cluster'].agg(lambda x: x.mode()[0]).reset_index()
+                                    
+                                    cluster_counts = daily_clusters['predicted_cluster'].value_counts().reset_index()
                                     cluster_counts.columns = ['cluster', 'count']
                                     cluster_counts = cluster_counts.sort_values('cluster')
                                     
@@ -407,17 +420,17 @@ def render(data):
                                         color='#805AD5'
                                     ).encode(
                                         x=alt.X('cluster:O', 
-                                                title='Cluster-Hora',
+                                                title='Cluster',
                                                 axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748')),
                                         y=alt.Y('count:Q', 
-                                                title='Frecuencia',
+                                                title='Días',
                                                 axis=alt.Axis(labelColor='#2d3748', titleColor='#2d3748')),
                                         tooltip=[
                                             alt.Tooltip('cluster:O', title='Cluster'),
-                                            alt.Tooltip('count:Q', title='Frecuencia')
+                                            alt.Tooltip('count:Q', title='Días')
                                         ]
                                     ).properties(
-                                        title=alt.TitleParams(text='Distribución de Clusters Predichos', fontSize=18, color='#2d3748', anchor='middle'),
+                                        title=alt.TitleParams(text='Distribución de Clusters por Día', fontSize=18, color='#2d3748', anchor='middle'),
                                         height=300
                                     ).configure(
                                         background='white'

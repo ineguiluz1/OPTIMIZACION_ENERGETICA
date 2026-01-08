@@ -278,7 +278,7 @@ class BuildingHeatLoadService:
         return {"power_kw": float(prediction)}
     
     @bentoml.api
-    def predict_cluster_pred(self, cluster_hour: int, temperature: float, solar_irradiation: float) -> dict:
+    def predict_cluster_pred(self, cluster_hour, temperature: float, solar_irradiation: float) -> dict:
         """
         Predict using Cluster-PRED model (CART-predicted clustering).
         
@@ -290,8 +290,70 @@ class BuildingHeatLoadService:
         Returns:
             dict with power_kw prediction
         """
-        prediction = self.cluster_pred_model.predict(cluster_hour, temperature, solar_irradiation)
-        return {"power_kw": float(prediction)}
+        # Allow passing either a numeric cluster code or a datetime-like string/ts
+        # If a datetime/string is passed, use the CART classifier (if available)
+        # to predict the cluster label and compute the cluster-hour code as
+        # cluster_label*100 + hour_of_day (this matches how ClusterHour_PRED is encoded).
+        cluster_code = None
+
+        # If it's already an int-like, use directly
+        try:
+            if isinstance(cluster_hour, (int,)):
+                cluster_code = int(cluster_hour)
+        except Exception:
+            cluster_code = None
+
+        # If passed as string or Timestamp, attempt to parse and predict cluster label
+        if cluster_code is None:
+            try:
+                ts = pd.to_datetime(cluster_hour)
+                hour = int(ts.hour)
+
+                clf = getattr(self, 'cart_classifier', None)
+                cluster_label = None
+                if clf is not None:
+                    # Try a few plausible feature vectors in order of likeliness
+                    feature_attempts = [
+                        [hour, int(ts.dayofweek), float(temperature), float(solar_irradiation)],
+                        [hour, float(temperature), float(solar_irradiation)],
+                        [hour, int(ts.dayofweek)],
+                        [hour]
+                    ]
+
+                    for feats in feature_attempts:
+                        try:
+                            arr = np.array([feats])
+                            pred = clf.predict(arr)
+                            if hasattr(pred, '__len__'):
+                                cluster_label = int(pred[0])
+                            else:
+                                cluster_label = int(pred)
+                            break
+                        except Exception:
+                            cluster_label = None
+
+                # If we obtained a cluster_label, encode according to the rules:
+                # - Cluster 0: código = hora (0-23)
+                # - Cluster 1: código = 100 + hora (100-123)
+                # - Cluster 2: código = 200 + hora (200-223)
+                if cluster_label is not None:
+                    if cluster_label == 0:
+                        cluster_code = hour
+                    else:
+                        cluster_code = int(cluster_label) * 100 + hour
+                else:
+                    # Fall back to hour-only code (asumimos cluster 0)
+                    cluster_code = int(hour)
+            except Exception:
+                # As a last resort, try to coerce to int
+                try:
+                    cluster_code = int(cluster_hour)
+                except Exception:
+                    raise ValueError(f"cluster_hour {cluster_hour} not found in parameters and could not be parsed")
+
+        # Now compute prediction using the resolved cluster_code
+        prediction = self.cluster_pred_model.predict(cluster_code, temperature, solar_irradiation)
+        return {"power_kw": float(prediction), "cluster_hour": int(cluster_code)}
     
     @bentoml.api
     def predict_batch_tow(self, timestamps_week: list, temperatures: list, solar_irradiations: list) -> dict:
